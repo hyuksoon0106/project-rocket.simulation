@@ -84,7 +84,7 @@
             </div>
             <div class="flex items-center gap-3 mb-2">
                 <div class="bg-indigo-600 p-2 rounded-lg">
-                    <i class="fa-solid font-rocket text-xl text-white"></i>
+                    <i class="fa-solid fa-rocket text-xl text-white"></i>
                 </div>
                 <div>
                     <p class="text-xs text-slate-400">KNSB 180g / 추력 210N / 질량 2.3kg</p>
@@ -242,10 +242,9 @@
             </div>
 
             <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-1">
-                <div class="flex justify-between"><span>로켓 전체 길이:</span><span class="text-slate-200">1100mm (콘 200mm 포함)</span></div>
-                <div class="flex justify-between"><span>무게 중심 (CG):</span><span class="text-slate-200">몸통 중앙 (450mm 지점)</span></div>
-                <div class="flex justify-between"><span>낙하산 사양:</span><span class="text-slate-200">1500mm 팔각형 (콘 분리점)</span></div>
-                <div class="flex justify-between"><span>사다리꼴 핀:</span><span class="text-slate-200">바디착지변 120mm / 외곽변 50mm / 밑변 85mm</span></div>
+                <div class="flex justify-between"><span>로켓 바디 길이:</span><span class="text-slate-200">900mm (스케일 6배)</span></div>
+                <div class="flex justify-between"><span>노즈콘:</span><span class="text-slate-200">200mm (y=-(x^2) 포물선형)</span></div>
+                <div class="flex justify-between"><span>핀 형태:</span><span class="text-slate-200">직각삼각형 2개 관통 교차</span></div>
             </div>
         </div>
 
@@ -257,14 +256,15 @@
             fuelMass: 0.18,
             thrust: 210,
             burnTime: 1.05,
-            bodyLength: 0.9,
-            coneLength: 0.2,
+            bodyLength: 0.9,   // 900mm
+            coneLength: 0.2,   // 200mm
             cdAscent: 0.55,
             parachuteSize: 1.5,
             parachuteCd: 1.5
         };
 
         const PARACHUTE_AREA = 0.8284 * Math.pow(ROCKET_SPECS.parachuteSize, 2);
+        const VISUAL_SCALE = 6.0; // 로켓 크기 6배 설정
 
         let scene, camera, renderer, controls;
         let rocketGroup, parachuteGroup, trajectoryLine, predictedTrajectoryLine, landingMarker;
@@ -420,36 +420,37 @@
             windArrowHelper.setLength(visualLength, visualLength * 0.25, visualLength * 0.15);
         }
 
+        // y = -(x^2) 형태의 포물선 프로파일을 가진 노즈콘 생성 (상단 팁 부근이 뾰족한 전형적인 포물선 노즈콘)
         function createParabolicConeGeometry(radius, height, segments = 32) {
             const points = [];
             for (let i = 0; i <= segments; i++) {
-                const t = i / segments;
-                const y = height * t;
+                const t = i / segments; // 0 (팁) ~ 1 (베이스)
+                const y = height * (1 - t);
+                // y = -(x^2) 성질을 반영한 포물선 반경 프로파일: r = radius * (1 - t^2) 혹은 Math.sqrt(1 - t)
                 const r = radius * Math.sqrt(1 - t);
-                points.push(new THREE.Vector2(r, y));
+                points.push(new THREE.Vector2(r, height - y));
             }
             return new THREE.LatheGeometry(points, 32);
         }
 
-        function createTrapezoidalFin() {
+        // 대형 직각삼각형 관통형 핀 생성 함수
+        function createRightTriangleFinGeometry() {
             const shape = new THREE.Shape();
-            const hBody = 0.12;   // 바디착지변 120mm
-            const hOuter = 0.05;  // 외곽변 50mm
-            const baseWidth = 0.085; // 밑변 85mm
+            const finHeight = -0.18; // 핀의 높이 (Y축 방향)
+            const finWidth = -0.18;  // 핀의 절반 너비 (X/Z축 방향)
 
-            shape.moveTo(0, 0);
-            shape.lineTo(baseWidth, 0);
-            shape.lineTo(baseWidth, hOuter);
-            shape.lineTo(0, hBody);
+            shape.moveTo(-finWidth, 0);
+            shape.lineTo(finWidth, 0);
+            shape.lineTo(0, finHeight);
             shape.closePath();
 
             const extrudeSettings = {
-                depth: 0.003,
+                depth: 0.005, // 두께 5mm
                 bevelEnabled: true,
                 bevelSegments: 2,
                 steps: 1,
-                bevelSize: 0.0005,
-                bevelThickness: 0.0005
+                bevelSize: 0.0008,
+                bevelThickness: 0.0008
             };
 
             const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
@@ -459,7 +460,6 @@
 
         function createRocketModel() {
             rocketGroup = new THREE.Group();
-            const VISUAL_SCALE = 2; // 로켓 크기 확대
 
             const radius = 0.045 * VISUAL_SCALE;
             const bodyH = ROCKET_SPECS.bodyLength * VISUAL_SCALE;
@@ -469,44 +469,47 @@
             const coneMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.2, metalness: 0.6 });
             const finMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
 
+            // 1. 바디 메쉬
             const bodyGeo = new THREE.CylinderGeometry(radius, radius, bodyH, 32);
             const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
             bodyMesh.castShadow = true;
             bodyMesh.position.y = 0; 
             rocketGroup.add(bodyMesh);
 
+            // 2. y=-(x^2) 포물선 노즈콘 메쉬
             const coneGeo = createParabolicConeGeometry(radius, coneH);
             const coneMesh = new THREE.Mesh(coneGeo, coneMat);
             coneMesh.castShadow = true;
             coneMesh.position.y = bodyH / 2;
             rocketGroup.add(coneMesh);
 
-            const finRadiusOffset = radius + 0.02 * VISUAL_SCALE;
-            const finYPos = -bodyH / 2 + (0.12 * VISUAL_SCALE / 2);
+            // 3. 직각삼각형 관통형 교차 핀 (X축, Z축 2개)
+            const finGeo = createRightTriangleFinGeometry();
+            const finYPos = -bodyH / 2 + (0.12 * VISUAL_SCALE);
 
-            for (let i = 0; i < 4; i++) {
-                const finMesh = new THREE.Mesh(createTrapezoidalFin(), finMat);
-                finMesh.scale.set(VISUAL_SCALE, VISUAL_SCALE, VISUAL_SCALE);
-                finMesh.castShadow = true;
+            // X축 방향 핀
+            const finMeshX = new THREE.Mesh(finGeo, finMat);
+            finMeshX.scale.set(VISUAL_SCALE, VISUAL_SCALE, VISUAL_SCALE);
+            finMeshX.castShadow = true;
+            finMeshX.position.y = finYPos;
+            finMeshX.rotation.y = Math.PI / 2;
+            finMeshX.rotation.z = Math.PI / 1;
+            rocketGroup.add(finMeshX);
 
-                const angle = (i * Math.PI) / 2;
-                finMesh.position.set(
-                    Math.cos(angle) * finRadiusOffset,
-                    finYPos,
-                    Math.sin(angle) * finRadiusOffset
-                );
+            // Z축 방향 핀
+            const finMeshZ = new THREE.Mesh(finGeo, finMat);
+            finMeshZ.scale.set(VISUAL_SCALE, VISUAL_SCALE, VISUAL_SCALE);
+            finMeshZ.castShadow = true;
+            finMeshZ.position.y = finYPos;
+            finMeshZ.rotation.y = 0;
+            finMeshZ.rotation.z = Math.PI / 1;
+            rocketGroup.add(finMeshZ);
 
-                // 모든 핀이 동일한 각도와 방향을 갖도록 통일
-                finMesh.rotation.y = angle;
-                finMesh.rotation.z = Math.PI / 2;
-                finMesh.rotation.x = angle;
-                
-                rocketGroup.add(finMesh);
-            }
-            
+            scene.add(rocketGroup);
+        }
+
         function createParachuteModel() {
             parachuteGroup = new THREE.Group();
-            const VISUAL_SCALE = 2;
             const r = (ROCKET_SPECS.parachuteSize / 2) * VISUAL_SCALE;
             
             const shape = new THREE.Shape();
@@ -753,7 +756,11 @@
                 ui.teleStatus.className = 'text-sm font-bold text-emerald-400';
             }
 
+            const baseOffsetY = (ROCKET_SPECS.bodyLength * VISUAL_SCALE) / 2 + 0.2;
             rocketGroup.position.copy(simState.pos);
+            if (simState.pos.y === 0) {
+                rocketGroup.position.y = baseOffsetY;
+            }
 
             if (simState.vel.lengthSq() > 0.1) {
                 if (!simState.parachuteDeployed) {
@@ -792,9 +799,11 @@
         function resetSimulation() {
             simState.running = false;
             simState.time = 0;
-            const VISUAL_SCALE = 2;
+
             const halfBodyH = (ROCKET_SPECS.bodyLength * VISUAL_SCALE) / 2;
-            simState.pos.set(0, halfBodyH + 0.2, 0);
+            const padSurfaceY = 0.2;
+            
+            simState.pos.set(0, 0, 0);
             simState.vel.set(0, 0, 0);
             simState.apogee = 0;
             simState.parachuteDeployed = false;
@@ -803,7 +812,7 @@
             const pitch = ((parseFloat(ui.launchPitch.value) || 85) * Math.PI) / 180;
             const yaw = ((parseFloat(ui.launchYaw.value) || 0) * Math.PI) / 180;
             
-            rocketGroup.position.copy(simState.pos);
+            rocketGroup.position.set(0, halfBodyH + padSurfaceY, 0);
             rocketGroup.rotation.set(0, 0, 0);
             rocketGroup.rotation.y = yaw;
             rocketGroup.rotateX(Math.PI / 2 - pitch);
