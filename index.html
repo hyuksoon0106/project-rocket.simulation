@@ -38,7 +38,6 @@
         .interactive {
             pointer-events: auto;
         }
-        /* Custom Scrollbar for side panel */
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -60,7 +59,6 @@
         .compass-dial {
             transition: transform 0.1s ease-out;
         }
-        /* Draggable Panel Styles */
         .draggable-panel {
             touch-action: none;
             user-select: none;
@@ -72,13 +70,10 @@
 </head>
 <body class="select-none">
 
-    <!-- 3D Canvas Container -->
     <div id="canvas-container"></div>
 
-    <!-- UI Overlay Layer -->
     <div class="ui-overlay inset-0 pointer-events-none p-4 md:p-6 overflow-hidden">
         
-        <!-- Draggable Title & Status Panel -->
         <div id="panel-telemetry" class="interactive draggable-panel absolute top-4 left-4 bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-xl p-4 shadow-2xl max-w-sm w-full">
             <div class="drag-handle flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
                 <div class="flex items-center gap-2">
@@ -96,7 +91,6 @@
                 </div>
             </div>
             
-            <!-- Telemetry Quick View -->
             <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-800 text-xs">
                 <div class="bg-slate-800/60 p-2 rounded-lg">
                     <span class="text-slate-400 block">현재 고도</span>
@@ -117,7 +111,6 @@
             </div>
         </div>
 
-        <!-- Draggable Landing Prediction Panel -->
         <div id="panel-prediction" class="interactive draggable-panel absolute top-4 right-44 bg-slate-900/95 backdrop-blur-md border border-amber-500/40 rounded-xl p-4 shadow-2xl w-64">
             <div class="drag-handle flex items-center justify-between mb-2 border-b border-slate-800 pb-1.5">
                 <span class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
@@ -144,7 +137,6 @@
                     <span id="pred-flight-time" class="font-bold text-cyan-400">0.0 s</span>
                 </div>
                 
-                <!-- Real-time XY/XZ Coordinate Landing Offset -->
                 <div class="bg-slate-800/90 p-2 rounded-lg border border-amber-500/30 mt-2">
                     <div class="text-[11px] font-bold text-amber-400 mb-1 flex items-center justify-between">
                         <span><i class="fa-solid fa-location-crosshairs mr-1"></i>착륙 예상 좌표 (X, Z)</span>
@@ -164,7 +156,6 @@
             </div>
         </div>
 
-        <!-- Draggable Digital Compass Widget -->
         <div id="panel-compass" class="interactive draggable-panel absolute top-4 right-4 bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-xl p-3 shadow-2xl flex flex-col items-center justify-center w-36">
             <div class="drag-handle w-full flex items-center justify-between text-[10px] text-slate-400 font-medium mb-1 border-b border-slate-800 pb-1">
                 <i class="fa-solid fa-grip-vertical text-slate-500"></i>
@@ -172,14 +163,12 @@
                 <span></span>
             </div>
             <div class="relative w-20 h-20 flex items-center justify-center mt-1">
-                <!-- Compass Background Ring -->
                 <div class="absolute inset-0 rounded-full border-2 border-slate-700 bg-slate-800/50 flex items-center justify-center">
                     <span class="absolute top-1 text-[10px] font-bold text-red-400">N</span>
                     <span class="absolute right-1 text-[10px] font-bold text-slate-400">E</span>
                     <span class="absolute bottom-1 text-[10px] font-bold text-slate-400">S</span>
                     <span class="absolute left-1 text-[10px] font-bold text-slate-400">W</span>
                 </div>
-                <!-- Needle Dial -->
                 <div id="compass-dial" class="compass-dial relative w-full h-full flex items-center justify-center">
                     <div class="w-1 h-8 bg-gradient-to-t from-slate-400 via-slate-300 to-red-500 rounded-full shadow-md"></div>
                     <div class="absolute w-2 h-2 bg-white rounded-full shadow"></div>
@@ -187,7 +176,6 @@
             </div>
         </div>
 
-        <!-- Draggable Left Controls: Simulation Playback & Time Scale -->
         <div id="panel-controls" class="interactive draggable-panel absolute bottom-4 left-4 bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-xl p-3 shadow-2xl flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <div class="drag-handle flex items-center justify-between sm:justify-start gap-2 border-b sm:border-b-0 sm:border-r border-slate-800 pb-1 sm:pb-0 sm:pr-2">
                 <i class="fa-solid fa-grip-vertical text-slate-500"></i>
@@ -204,7 +192,6 @@
             
             <div class="h-6 w-px bg-slate-700 mx-1 hidden sm:block"></div>
             
-            <!-- Speed Controls -->
             <div class="flex items-center gap-1 bg-slate-800/80 p-1 rounded-lg border border-slate-700">
                 <span class="text-xs text-slate-400 px-1 font-medium">배속:</span>
                 <button class="btn-speed text-xs px-2 py-1 rounded bg-indigo-600 font-bold text-white" data-speed="1">1x</button>
@@ -214,7 +201,6 @@
             </div>
         </div>
 
-        <!-- Draggable Right Panel: Precise Numerical Inputs -->
         <div id="panel-inputs" class="interactive draggable-panel absolute bottom-4 right-4 bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-xl p-4 shadow-2xl w-full max-w-sm md:w-96 max-h-[50vh] overflow-y-auto">
             <h2 class="drag-handle text-sm font-bold text-slate-200 border-b border-slate-800 pb-2 mb-3 flex items-center justify-between cursor-move">
                 <span><i class="fa-solid fa-grip-vertical text-slate-500 mr-2"></i><i class="fa-solid fa-sliders text-indigo-400 mr-2"></i>비행 환경 설정</span>
@@ -222,7 +208,6 @@
             </h2>
 
             <div class="grid grid-cols-2 gap-3 text-xs">
-                <!-- Wind Speed -->
                 <div>
                     <label class="text-slate-400 block mb-1">풍속 (m/s)</label>
                     <div class="relative">
@@ -231,7 +216,6 @@
                     </div>
                 </div>
 
-                <!-- Wind Direction -->
                 <div>
                     <label class="text-slate-400 block mb-1">풍향 (도, 0=북쪽)</label>
                     <div class="relative">
@@ -240,7 +224,6 @@
                     </div>
                 </div>
 
-                <!-- Launch Pitch Angle -->
                 <div>
                     <label class="text-slate-400 block mb-1">발사대 고각 (80~90°)</label>
                     <div class="relative">
@@ -249,7 +232,6 @@
                     </div>
                 </div>
 
-                <!-- Launch Azimuth -->
                 <div>
                     <label class="text-slate-400 block mb-1">발사대 방위각 (0~360°)</label>
                     <div class="relative">
@@ -259,40 +241,34 @@
                 </div>
             </div>
 
-            <!-- Fixed Specs Summary -->
             <div class="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 space-y-1">
                 <div class="flex justify-between"><span>로켓 전체 길이:</span><span class="text-slate-200">1100mm (콘 200mm 포함)</span></div>
                 <div class="flex justify-between"><span>무게 중심 (CG):</span><span class="text-slate-200">몸통 중앙 (450mm 지점)</span></div>
                 <div class="flex justify-between"><span>낙하산 사양:</span><span class="text-slate-200">1500mm 팔각형 (콘 분리점)</span></div>
-                <div class="flex justify-between"><span>사다리꼴 핀 4개:</span><span class="text-slate-200">120×85×50mm (두께 3mm)</span></div>
+                <div class="flex justify-between"><span>사다리꼴 핀:</span><span class="text-slate-200">바디착지변 120mm / 외곽변 50mm / 밑변 85mm</span></div>
             </div>
         </div>
 
     </div>
 
-    <!-- Main JavaScript Logic -->
     <script>
-        // --- 1. Rocket Physics & Simulation Constants ---
         const ROCKET_SPECS = {
-            mass: 2.3,            // total mass (kg)
-            fuelMass: 0.18,       // KNSB 6535 fuel (kg)
-            thrust: 210,          // Thrust force (N)
-            burnTime: 1.05,       // Motor burn duration (s)
-            bodyLength: 0.9,      // 900mm
-            coneLength: 0.2,      // 200mm
-            cdAscent: 0.55,       // Drag coefficient during ascent
-            parachuteSize: 1.5,   // 1500mm octagonal parachute
-            parachuteCd: 1.5      // Drag coefficient of parachute
+            mass: 2.3,
+            fuelMass: 0.18,
+            thrust: 210,
+            burnTime: 1.05,
+            bodyLength: 0.9,
+            coneLength: 0.2,
+            cdAscent: 0.55,
+            parachuteSize: 1.5,
+            parachuteCd: 1.5
         };
 
-        // Derived Parachute Area
-        // Octagon Area ~ 0.8284 * width^2
         const PARACHUTE_AREA = 0.8284 * Math.pow(ROCKET_SPECS.parachuteSize, 2);
 
-        // Global State Variables
         let scene, camera, renderer, controls;
         let rocketGroup, parachuteGroup, trajectoryLine, predictedTrajectoryLine, landingMarker;
-        let axisGroup;
+        let axisGroup, windArrowHelper;
         
         let simState = {
             running: false,
@@ -308,7 +284,6 @@
 
         let timeScale = 1.0;
 
-        // UI Elements Cache
         const ui = {
             windSpeed: document.getElementById('input-wind-speed'),
             windDir: document.getElementById('input-wind-dir'),
@@ -329,20 +304,16 @@
             compassDial: document.getElementById('compass-dial')
         };
 
-        // --- 2. Three.js Scene Setup & Modeling ---
         function initScene() {
             const container = document.getElementById('canvas-container');
             
-            // Scene
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0f172a);
             scene.fog = new THREE.FogExp2(0x0f172a, 0.001);
 
-            // Camera
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 3000);
             camera.position.set(40, 25, 60);
 
-            // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -350,16 +321,14 @@
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             container.appendChild(renderer.domElement);
 
-            // Orbit Controls (Scroll Zoom Enabled)
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
-            controls.maxPolarAngle = Math.PI / 2 - 0.01; // Don't go below ground
+            controls.maxPolarAngle = Math.PI / 2 - 0.01;
             controls.minDistance = 2;
             controls.maxDistance = 1500;
             controls.target.set(0, 10, 0);
 
-            // Lights
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
             scene.add(ambientLight);
 
@@ -377,30 +346,19 @@
             sunLight.shadow.camera.bottom = -d;
             scene.add(sunLight);
 
-            // Terrain Grid & Ground
             createEnvironment();
-
-            // 3D Axis Indicator at Launch Base
             createAxisGuide();
-
-            // Build Rocket 3D Model
+            createWindIndicator();
             createRocketModel();
-
-            // Build Parachute Model
             createParachuteModel();
-
-            // Trajectory Lines & Marker Setup
             setupTrajectoryObjects();
 
-            // Window Resize
             window.addEventListener('resize', onWindowResize);
 
-            // Update Prediction & Initial Render
             updatePrediction();
             resetSimulation();
         }
 
-        // Create Environment Grid and Ground
         function createEnvironment() {
             const groundGeo = new THREE.PlaneGeometry(2000, 2000);
             const groundMat = new THREE.MeshStandardMaterial({ 
@@ -417,7 +375,6 @@
             grid.position.y = 0.05;
             scene.add(grid);
 
-            // Launch Pad Plate
             const padGeo = new THREE.CylinderGeometry(3, 3.2, 0.2, 32);
             const padMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.5 });
             const pad = new THREE.Mesh(padGeo, padMat);
@@ -426,56 +383,68 @@
             scene.add(pad);
         }
 
-        // 3D Axes Guide Indicator (X=Red, Y=Green, Z=Blue)
         function createAxisGuide() {
             axisGroup = new THREE.Group();
-            axisGroup.position.set(-6, 0.1, -6); // Near launch pad
+            axisGroup.position.set(-6, 0.1, -6);
 
-            const createArrow = (dir, color, labelText) => {
-                const arrow = new THREE.ArrowHelper(dir, new THREE.Vector3(0, 0, 0), 4, color, 0.8, 0.4);
-                return arrow;
+            const createArrow = (dir, color) => {
+                return new THREE.ArrowHelper(dir, new THREE.Vector3(0, 0, 0), 4, color, 0.8, 0.4);
             };
 
-            // X-axis (East/West) -> Red
             axisGroup.add(createArrow(new THREE.Vector3(1, 0, 0), 0xef4444));
-            // Y-axis (Altitude) -> Green
             axisGroup.add(createArrow(new THREE.Vector3(0, 1, 0), 0x22c55e));
-            // Z-axis (North/South) -> Blue
             axisGroup.add(createArrow(new THREE.Vector3(0, 0, 1), 0x3b82f6));
 
             scene.add(axisGroup);
         }
 
-        // Create Parabolic Nose Cone Geometry (y = -x^2 profile)
+        function createWindIndicator() {
+            const dir = new THREE.Vector3(0, 0, 1);
+            const origin = new THREE.Vector3(6, 0.2, 6);
+            const length = 6;
+            const hex = 0x06b6d4;
+            windArrowHelper = new THREE.ArrowHelper(dir, origin, length, hex, 1.5, 0.8);
+            scene.add(windArrowHelper);
+        }
+
+        function updateWindIndicator() {
+            if (!windArrowHelper) return;
+            const speed = parseFloat(ui.windSpeed.value) || 0;
+            const dirDeg = parseFloat(ui.windDir.value) || 0;
+            const rad = (dirDeg * Math.PI) / 180;
+            
+            const windDirVec = new THREE.Vector3(Math.sin(rad), 0, Math.cos(rad)).normalize();
+            windArrowHelper.setDirection(windDirVec);
+            
+            const visualLength = Math.max(2, Math.min(speed * 1.5, 12));
+            windArrowHelper.setLength(visualLength, visualLength * 0.25, visualLength * 0.15);
+        }
+
         function createParabolicConeGeometry(radius, height, segments = 32) {
             const points = [];
             for (let i = 0; i <= segments; i++) {
-                const t = i / segments; // 0 (tip) to 1 (base)
-                // y = height * (1 - t^2) profile
-                const y = height * (1 - t);
-                const r = radius * Math.sqrt(t); // parabolic curve
-                points.push(new THREE.Vector2(r, height - y));
+                const t = i / segments;
+                const y = height * t;
+                const r = radius * Math.sqrt(1 - t);
+                points.push(new THREE.Vector2(r, y));
             }
             return new THREE.LatheGeometry(points, 32);
         }
 
-        // Create Trapezoidal Fin Mesh (120mm height, 85mm root, 50mm tip, 3mm thick)
         function createTrapezoidalFin() {
             const shape = new THREE.Shape();
-            // Scale in meters: 120mm = 0.12m, 85mm = 0.085m, 50mm = 0.05m
-            const root = 0.085;
-            const tip = 0.05;
-            const height = 0.12;
-            const sweep = 0.035; // sweep back angle offset
+            const hBody = 0.12;   // 바디착지변 120mm
+            const hOuter = 0.05;  // 외곽변 50mm
+            const baseWidth = 0.085; // 밑변 85mm
 
             shape.moveTo(0, 0);
-            shape.lineTo(root, 0);
-            shape.lineTo(sweep + tip, height);
-            shape.lineTo(sweep, height);
+            shape.lineTo(baseWidth, 0);
+            shape.lineTo(baseWidth, hOuter);
+            shape.lineTo(0, hBody);
             shape.closePath();
 
             const extrudeSettings = {
-                depth: 0.003, // 3mm thickness
+                depth: 0.003,
                 bevelEnabled: true,
                 bevelSegments: 2,
                 steps: 1,
@@ -488,65 +457,71 @@
             return geo;
         }
 
-        // Assemble 3D Rocket Assembly (Pivot at Center of Gravity)
         function createRocketModel() {
             rocketGroup = new THREE.Group();
+            const VISUAL_SCALE = 3; // 로켓 크기 확대
 
-            const radius = 0.045; // 90mm diameter body
-            const bodyH = ROCKET_SPECS.bodyLength; // 0.9m
-            const coneH = ROCKET_SPECS.coneLength; // 0.2m
+            const radius = 0.045 * VISUAL_SCALE;
+            const bodyH = ROCKET_SPECS.bodyLength * VISUAL_SCALE;
+            const coneH = ROCKET_SPECS.coneLength * VISUAL_SCALE;
 
-            // Materials
             const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.3, metalness: 0.4 });
             const coneMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.2, metalness: 0.6 });
             const finMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
 
-            // 1. Main Body Cylinder (0.9m)
             const bodyGeo = new THREE.CylinderGeometry(radius, radius, bodyH, 32);
             const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
             bodyMesh.castShadow = true;
-            // Align center of gravity (CG at 0,0,0)
             bodyMesh.position.y = 0; 
             rocketGroup.add(bodyMesh);
 
-            // 2. Parabolic Nose Cone (0.2m)
             const coneGeo = createParabolicConeGeometry(radius, coneH);
             const coneMesh = new THREE.Mesh(coneGeo, coneMat);
             coneMesh.castShadow = true;
-            // Positioned at top of body cylinder
             coneMesh.position.y = bodyH / 2;
             rocketGroup.add(coneMesh);
 
-            // 3. Four Trapezoidal Fins
-            const finGeo = createTrapezoidalFin();
+            const finRadiusOffset = radius + 0.02 * VISUAL_SCALE;
+            const finYPos = -bodyH / 2 + (0.12 * VISUAL_SCALE / 2);
+
             for (let i = 0; i < 4; i++) {
-                const finMesh = new THREE.Mesh(finGeo, finMat);
+                const finMesh = new THREE.Mesh(createTrapezoidalFin(), finMat);
+                finMesh.scale.set(VISUAL_SCALE, VISUAL_SCALE, VISUAL_SCALE);
                 finMesh.castShadow = true;
+
                 const angle = (i * Math.PI) / 2;
-                finMesh.rotation.y = angle;
-                
-                // Position at bottom of rocket body
-                const finRadiusOffset = radius + 0.04;
                 finMesh.position.set(
                     Math.cos(angle) * finRadiusOffset,
-                    -bodyH / 2 + 0.06,
+                    finYPos,
                     Math.sin(angle) * finRadiusOffset
                 );
+
+                if (i === 0 || i === 2) { 
+                    // X축에 있는 핀 (+X, -X): 위에서 봤을 때 시계 반대 방향으로 90도 회전
+                    finMesh.rotation.y = angle + Math.PI / 1;
+                } else if (i === 1 || i === 3) {
+                    // Z축에 있는 핀 (+Z, -Z): 상하 뒤집기
+                    finMesh.scale.y *= -1;
+                    finMesh.rotation.y = angle;
+                }
+
                 finMesh.rotation.z = Math.PI / 2;
-                finMesh.rotation.x = angle;
+                if (i !== 0 && i !== 2) {
+                    finMesh.rotation.x = angle;
+                }
+                
                 rocketGroup.add(finMesh);
             }
 
             scene.add(rocketGroup);
         }
 
-        // Build Octagonal Parachute Mesh
         function createParachuteModel() {
             parachuteGroup = new THREE.Group();
-
-            // Create Octagonal Canopy Shape
+            const VISUAL_SCALE = 2;
+            const r = (ROCKET_SPECS.parachuteSize / 2) * VISUAL_SCALE;
+            
             const shape = new THREE.Shape();
-            const r = ROCKET_SPECS.parachuteSize / 2;
             for (let i = 0; i < 8; i++) {
                 const a = (i * Math.PI) / 4;
                 const x = r * Math.cos(a);
@@ -564,10 +539,9 @@
             });
             const canopy = new THREE.Mesh(canopyGeo, canopyMat);
             canopy.rotation.x = Math.PI / 2;
-            canopy.position.y = 1.2; // Height above separation point
+            canopy.position.y = 1.2 * VISUAL_SCALE;
             parachuteGroup.add(canopy);
 
-            // Suspension Lines (connected to separation joint)
             const lineMat = new THREE.LineBasicMaterial({ color: 0xf8fafc, opacity: 0.6, transparent: true });
             for (let i = 0; i < 8; i++) {
                 const a = (i * Math.PI) / 4;
@@ -575,28 +549,24 @@
                 const pz = r * Math.sin(a);
 
                 const lineGeo = new THREE.BufferGeometry().setFromPoints([
-                    new THREE.Vector3(px, 1.2, pz),
-                    new THREE.Vector3(0, 0, 0) // Joint point at top of body cylinder
+                    new THREE.Vector3(px, 1.2 * VISUAL_SCALE, pz),
+                    new THREE.Vector3(0, 0, 0)
                 ]);
                 const line = new THREE.Line(lineGeo, lineMat);
                 parachuteGroup.add(line);
             }
 
-            // Position parachute at cone separation joint (top of body)
-            parachuteGroup.position.y = ROCKET_SPECS.bodyLength / 2;
+            parachuteGroup.position.y = (ROCKET_SPECS.bodyLength / 2) * VISUAL_SCALE;
             parachuteGroup.visible = false;
             rocketGroup.add(parachuteGroup);
         }
 
-        // Trajectory Rendering Setup
         function setupTrajectoryObjects() {
-            // Actual Flight Trajectory Line
             const trajGeo = new THREE.BufferGeometry();
             const trajMat = new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 3 });
             trajectoryLine = new THREE.Line(trajGeo, trajMat);
             scene.add(trajectoryLine);
 
-            // Predicted Trajectory Line
             const predGeo = new THREE.BufferGeometry();
             const predMat = new THREE.LineDashedMaterial({ 
                 color: 0xf59e0b, 
@@ -608,7 +578,6 @@
             predictedTrajectoryLine = new THREE.Line(predGeo, predMat);
             scene.add(predictedTrajectoryLine);
 
-            // Predicted Landing Target Marker
             const markerGeo = new THREE.RingGeometry(1, 2.5, 32);
             const markerMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide, opacity: 0.8, transparent: true });
             landingMarker = new THREE.Mesh(markerGeo, markerMat);
@@ -617,29 +586,22 @@
             scene.add(landingMarker);
         }
 
-        // --- 3. Physics Simulation Engine & Predictor ---
-
-        // Numerical Flight Prediction Integrator
         function calculateTrajectory(windSpeed, windDirDeg, pitchDeg, yawDeg) {
-            const dt = 0.05; // Integration step
+            const dt = 0.05;
             let time = 0;
             
-            // Convert inputs
             const pitch = (pitchDeg * Math.PI) / 180;
             const yaw = (yawDeg * Math.PI) / 180;
             const windDirRad = (windDirDeg * Math.PI) / 180;
 
-            // Wind velocity vector (blowing towards)
             const windVec = new THREE.Vector3(
                 Math.sin(windDirRad) * windSpeed,
                 0,
                 Math.cos(windDirRad) * windSpeed
             );
 
-            // Initial Vectors
             let pos = new THREE.Vector3(0, 0, 0);
             
-            // Thrust Direction Unit Vector
             const launchDir = new THREE.Vector3(
                 Math.cos(pitch) * Math.sin(yaw),
                 Math.sin(pitch),
@@ -654,40 +616,31 @@
             const points = [pos.clone()];
 
             while (pos.y >= 0 && time < 300) {
-                // Effective air velocity
                 const relVel = vel.clone().sub(windVec);
                 const speedSq = relVel.lengthSq();
 
-                // Forces
-                let totalForce = new THREE.Vector3(0, -9.81 * mass, 0); // Gravity
+                let totalForce = new THREE.Vector3(0, -9.81 * mass, 0);
 
-                // Thrust Phase
                 if (time <= ROCKET_SPECS.burnTime) {
                     const thrustForce = launchDir.clone().multiplyScalar(ROCKET_SPECS.thrust);
                     totalForce.add(thrustForce);
-                    // Fuel consumption mass reduction
                     mass = ROCKET_SPECS.mass - (ROCKET_SPECS.fuelMass * (time / ROCKET_SPECS.burnTime));
                 }
 
-                // Check Apogee & Parachute Deployment
                 if (vel.y < 0 && !parachuteDeployed) {
                     parachuteDeployed = true;
                 }
 
-                // Drag Force Calculation
                 if (!parachuteDeployed) {
-                    // Rocket Body Drag
                     const dragMag = 0.5 * 1.225 * speedSq * ROCKET_SPECS.cdAscent * (Math.PI * 0.045 * 0.045);
                     const dragForce = relVel.clone().normalize().multiplyScalar(-dragMag);
                     totalForce.add(dragForce);
                 } else {
-                    // Parachute Descent Drag
                     const dragMag = 0.5 * 1.225 * speedSq * ROCKET_SPECS.parachuteCd * PARACHUTE_AREA;
                     const dragForce = relVel.clone().normalize().multiplyScalar(-dragMag);
                     totalForce.add(dragForce);
                 }
 
-                // Euler Integration
                 const accel = totalForce.divideScalar(mass);
                 vel.add(accel.multiplyScalar(dt));
                 pos.add(vel.clone().multiplyScalar(dt));
@@ -698,7 +651,6 @@
                 time += dt;
             }
 
-            // Ensure ground contact level
             if (pos.y < 0) pos.y = 0;
 
             const totalDist = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
@@ -715,18 +667,18 @@
             };
         }
 
-        // Update Predicted Trajectory and UI Info
         function updatePrediction() {
             const windSpeed = parseFloat(ui.windSpeed.value) || 0;
             const windDir = parseFloat(ui.windDir.value) || 0;
             const launchPitch = parseFloat(ui.launchPitch.value) || 85;
             const launchYaw = parseFloat(ui.launchYaw.value) || 0;
 
+            updateWindIndicator();
+
             const pred = calculateTrajectory(windSpeed, windDir, launchPitch, launchYaw);
             simState.predictedPoints = pred.points;
             simState.predictedLanding = pred.landingPos;
 
-            // Render Dashed Prediction Line
             const positions = new Float32Array(pred.points.length * 3);
             for (let i = 0; i < pred.points.length; i++) {
                 positions[i * 3] = pred.points[i].x;
@@ -736,16 +688,13 @@
             predictedTrajectoryLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
             predictedTrajectoryLine.computeLineDistances();
 
-            // Position Target Landing Ring
             landingMarker.position.set(pred.landingPos.x, 0.1, pred.landingPos.z);
 
-            // Update Prediction UI Panel
             ui.predDist.textContent = `${pred.distance.toFixed(1)} m`;
             ui.predBearing.textContent = `${pred.bearing.toFixed(1)}°`;
             ui.predApogee.textContent = `${pred.apogee.toFixed(1)} m`;
             ui.predFlightTime.textContent = `${pred.flightTime.toFixed(1)} s`;
             
-            // X (East/West) & Z (North/South) Landing Offset Coordinates Display
             const xVal = pred.landingPos.x;
             const zVal = pred.landingPos.z;
             const xDir = xVal >= 0 ? '동' : '서';
@@ -755,7 +704,6 @@
             if (ui.predZCoord) ui.predZCoord.textContent = `${zVal.toFixed(1)}m (${zDir})`;
         }
 
-        // Physics step for active live simulation
         function physicsStep(dt) {
             if (!simState.running) return;
 
@@ -779,18 +727,15 @@
             let mass = ROCKET_SPECS.mass;
             let totalForce = new THREE.Vector3(0, -9.81 * mass, 0);
 
-            // Thrust Phase
             if (simState.time <= ROCKET_SPECS.burnTime) {
                 const thrustForce = launchDir.clone().multiplyScalar(ROCKET_SPECS.thrust);
                 totalForce.add(thrustForce);
                 mass = ROCKET_SPECS.mass - (ROCKET_SPECS.fuelMass * (simState.time / ROCKET_SPECS.burnTime));
             }
 
-            // Relative velocity
             const relVel = simState.vel.clone().sub(windVec);
             const speedSq = relVel.lengthSq();
 
-            // Check Apogee & Deploy Parachute
             if (simState.vel.y < 0 && !simState.parachuteDeployed) {
                 simState.parachuteDeployed = true;
                 parachuteGroup.visible = true;
@@ -798,7 +743,6 @@
                 ui.teleStatus.className = 'text-sm font-bold text-cyan-400';
             }
 
-            // Aerodynamic Drag Force
             if (!simState.parachuteDeployed) {
                 const dragMag = 0.5 * 1.225 * speedSq * ROCKET_SPECS.cdAscent * (Math.PI * 0.045 * 0.045);
                 totalForce.add(relVel.clone().normalize().multiplyScalar(-dragMag));
@@ -807,7 +751,6 @@
                 totalForce.add(relVel.clone().normalize().multiplyScalar(-dragMag));
             }
 
-            // Integration
             const accel = totalForce.divideScalar(mass);
             simState.vel.add(accel.multiplyScalar(dt));
             simState.pos.add(simState.vel.clone().multiplyScalar(dt));
@@ -815,7 +758,6 @@
 
             if (simState.pos.y > simState.apogee) simState.apogee = simState.pos.y;
 
-            // Ground Collision
             if (simState.pos.y <= 0) {
                 simState.pos.y = 0;
                 simState.running = false;
@@ -823,22 +765,18 @@
                 ui.teleStatus.className = 'text-sm font-bold text-emerald-400';
             }
 
-            // Update Rocket Object Position & Orientation
             rocketGroup.position.copy(simState.pos);
 
             if (simState.vel.lengthSq() > 0.1) {
                 if (!simState.parachuteDeployed) {
-                    // Orient rocket along flight velocity direction
                     const targetDir = simState.pos.clone().add(simState.vel);
                     rocketGroup.lookAt(targetDir);
-                    rocketGroup.rotateX(Math.PI / 2); // Align cylinder axis
+                    rocketGroup.rotateX(Math.PI / 2);
                 } else {
-                    // Under parachute: hang vertically downward
                     rocketGroup.rotation.set(0, 0, 0);
                 }
             }
 
-            // Update Flight Trajectory Line
             simState.trajectoryPoints.push(simState.pos.clone());
             const positions = new Float32Array(simState.trajectoryPoints.length * 3);
             for (let i = 0; i < simState.trajectoryPoints.length; i++) {
@@ -848,16 +786,12 @@
             }
             trajectoryLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-            // Update Telemetry Panel
             ui.teleAlt.textContent = `${simState.pos.y.toFixed(1)} m`;
             ui.teleVel.textContent = `${simState.vel.length().toFixed(1)} m/s`;
             ui.teleTime.textContent = `${simState.time.toFixed(1)} s`;
 
-            // Smooth Camera Follow
             controls.target.copy(simState.pos);
         }
-
-        // --- 4. User Interaction & Event Handlers ---
 
         function startSimulation() {
             if (simState.running) return;
@@ -870,17 +804,18 @@
         function resetSimulation() {
             simState.running = false;
             simState.time = 0;
-            simState.pos.set(0, 0, 0);
+            const VISUAL_SCALE = 2;
+            const halfBodyH = (ROCKET_SPECS.bodyLength * VISUAL_SCALE) / 2;
+            simState.pos.set(0, halfBodyH + 0.2, 0);
             simState.vel.set(0, 0, 0);
             simState.apogee = 0;
             simState.parachuteDeployed = false;
             simState.trajectoryPoints = [];
 
-            // Reset Rocket Mesh Orientation
             const pitch = ((parseFloat(ui.launchPitch.value) || 85) * Math.PI) / 180;
             const yaw = ((parseFloat(ui.launchYaw.value) || 0) * Math.PI) / 180;
             
-            rocketGroup.position.set(0, 0, 0);
+            rocketGroup.position.copy(simState.pos);
             rocketGroup.rotation.set(0, 0, 0);
             rocketGroup.rotation.y = yaw;
             rocketGroup.rotateX(Math.PI / 2 - pitch);
@@ -888,7 +823,6 @@
             parachuteGroup.visible = false;
             trajectoryLine.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(0), 3));
 
-            // Reset Telemetry UI
             ui.teleAlt.textContent = '0.0 m';
             ui.teleVel.textContent = '0.0 m/s';
             ui.teleStatus.textContent = '대기 중';
@@ -899,10 +833,8 @@
             updatePrediction();
         }
 
-        // Digital Compass Update Loop
         function updateCompass() {
             if (!controls) return;
-            // Get camera horizontal heading angle
             const dir = new THREE.Vector3();
             camera.getWorldDirection(dir);
             let heading = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
@@ -910,12 +842,10 @@
             ui.compassDial.style.transform = `rotate(${heading}deg)`;
         }
 
-        // Attach Event Listeners
         function setupEvents() {
             ui.btnLaunch.addEventListener('click', startSimulation);
             ui.btnReset.addEventListener('click', resetSimulation);
 
-            // Inputs change triggers trajectory recalculation
             [ui.windSpeed, ui.windDir, ui.launchPitch, ui.launchYaw].forEach(input => {
                 input.addEventListener('input', () => {
                     updatePrediction();
@@ -923,7 +853,6 @@
                 });
             });
 
-            // Speed Scaling Buttons
             document.querySelectorAll('.btn-speed').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     document.querySelectorAll('.btn-speed').forEach(b => b.className = 'btn-speed text-xs px-2 py-1 rounded hover:bg-slate-700 text-slate-300');
@@ -932,11 +861,9 @@
                 });
             });
 
-            // Enable Drag & Drop for UI Panels
             enableDraggablePanels();
         }
 
-        // Draggable UI Panels Handler
         function enableDraggablePanels() {
             const panels = document.querySelectorAll('.draggable-panel');
 
@@ -946,7 +873,6 @@
                 let startX, startY, initialLeft, initialTop;
 
                 handle.addEventListener('mousedown', (e) => {
-                    // Ignore clicks on inputs or buttons
                     if (['INPUT', 'BUTTON', 'A', 'I'].includes(e.target.tagName)) return;
 
                     isDragging = true;
@@ -958,7 +884,6 @@
                     initialLeft = rect.left;
                     initialTop = rect.top;
 
-                    // Switch positioning to fixed left/top once dragged
                     panel.style.position = 'fixed';
                     panel.style.left = `${initialLeft}px`;
                     panel.style.top = `${initialTop}px`;
@@ -992,7 +917,6 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        // Main Render Loop
         function animate() {
             requestAnimationFrame(animate);
 
@@ -1008,7 +932,6 @@
             renderer.render(scene, camera);
         }
 
-        // Initialization Entrypoint
         window.addEventListener('DOMContentLoaded', () => {
             initScene();
             setupEvents();
