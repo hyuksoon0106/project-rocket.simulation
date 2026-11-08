@@ -496,26 +496,14 @@
                     Math.sin(angle) * finRadiusOffset
                 );
 
-                if (i === 0 || i === 2) { 
-                    // X축에 있는 핀 (+X, -X): 위에서 봤을 때 시계 반대 방향으로 90도 회전
-                    finMesh.rotation.y = angle + Math.PI / 1;
-                } else if (i === 1 || i === 3) {
-                    // Z축에 있는 핀 (+Z, -Z): 상하 뒤집기
-                    finMesh.scale.y *= -1;
-                    finMesh.rotation.y = angle;
-                }
-
+                // 모든 핀이 동일한 각도와 방향을 갖도록 통일
+                finMesh.rotation.y = angle;
                 finMesh.rotation.z = Math.PI / 2;
-                if (i !== 0 && i !== 2) {
-                    finMesh.rotation.x = angle;
-                }
+                finMesh.rotation.x = angle;
                 
                 rocketGroup.add(finMesh);
             }
-
-            scene.add(rocketGroup);
-        }
-
+            
         function createParachuteModel() {
             parachuteGroup = new THREE.Group();
             const VISUAL_SCALE = 2;
