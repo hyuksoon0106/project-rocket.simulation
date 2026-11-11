@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D 로켓 비행 및 착륙 예측 시뮬레이터 (모바일 최적화)</title>
+    <!-- Tailwind CSS & FontAwesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Three.js 및 OrbitControls CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <style>
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #0f172a; color: #f8fafc;
+            touch-action: manipulation;
+        }
+        #canvas-container { 
+            width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; 
+        }
+        .ui-overlay { position: absolute; z-index: 10; pointer-events: none; }
+        .interactive { pointer-events: auto; }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+        ::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.8); border-radius: 2px; }
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+        .draggable-panel { touch-action: none; user-select: none; transition: transform 0.3s ease, opacity 0.3s ease; }
+        .drag-handle { cursor: move; }
+        
+        .panel-hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: scale(0.95) translateY(10px) !important;
+        }
+    </style>
+</head>
+<body class="select-none">
+
+    <div id="canvas-container"></div>
+
+    <button id="btn-toggle-ui" class="interactive fixed top-4 right-4 z-50 bg-indigo-600/90 hover:bg-indigo-500 text-white p-3 rounded-full shadow-lg border border-indigo-400/50 backdrop-blur-md flex items-center justify-center transition active:scale-95">
+        <i class="fa-solid fa-eye-slash text-base" id="icon-toggle-ui"></i>
+    </button>
+
+    <div class="ui-overlay inset-0 pointer-events-none p-2 sm:p-4 md:p-6 overflow-hidden">
+        
+        <!-- 텔레메트리 패널 -->
+        <div id="panel-telemetry" class="interactive draggable-panel absolute top-4 left-2 sm:left-4 bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-xl p-3 sm:p-4 shadow-2xl max-w-[280px] sm:max-w-sm w-full">
+            <div class="drag-handle flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-grip-vertical text-slate-500"></i>
+                    <h1 class="font-bold text-xs sm:text-sm text-slate-100">로켓 비행 시뮬레이터</h1>
+                </div>
+                <div class="flex items-center gap-1">
+                    <span class="text-[9px] text-slate-500 hidden sm:inline">드래그 이동</span>
+                    <button class="btn-minimize-panel text-slate-400 hover:text-white px-1 text-xs"><i class="fa-solid fa-chevron-up"></i></button>
+                </div>
+            </div>
+            <div class="panel-content">
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="bg-indigo-600 p-1.5 rounded-lg">
+                        <i class="fa-solid fa-rocket text-sm sm:text-base text-white"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] sm:text-xs text-slate-400">랜덤 난기류/돌풍 적용 (발사 시마다 변화)</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-1.5 sm:gap-2 mt-2 pt-2 border-t border-slate-800 text-[11px] sm:text-xs">
+                    <div class="bg-slate-800/60 p-1.5 sm:p-2 rounded-lg">
+                        <span class="text-slate-400 block text-[10px]">현재 고도</span>
+                        <span id="tele-alt" class="text-xs sm:text-sm font-bold text-emerald-400">0.0 m</span>
+                    </div>
+                    <div class="bg-slate-800/60 p-1.5 sm:p-2 rounded-lg">
+                        <span class="text-slate-400 block text-[10px]">비행 속도</span>
+                        <span id="tele-vel" class="text-xs sm:text-sm font-bold text-cyan-400">0.0 m/s</span>
+                    </div>
+                    <div class="bg-slate-800/60 p-1.5 sm:p-2 rounded-lg">
+                        <span class="text-slate-400 block text-[10px]">비행 상태</span>
+                        <span id="tele-status" class="text-xs sm:text-sm font-bold text-amber-400">대기 중</span>
+                    </div>
+                    <div class="bg-slate-800/60 p-1.5 sm:p-2 rounded-lg">
+                        <span class="text-slate-400 block text-[10px]">경과 시간</span>
+                        <span id="tele-time" class="text-xs sm:text-sm font-bold text-slate-200">0.0 s</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 착륙 예정지 예측 패널 -->
+        <div id="panel-prediction" class="interactive draggable-panel absolute top-24 sm:top-4 right-2 sm:right-16 bg-slate-900/95 backdrop-blur-md border border-amber-500/40 rounded-xl p-3 sm:p-4 shadow-2xl w-60 sm:w-64">
+            <div class="drag-handle flex items-center justify-between mb-2 border-b border-slate-800 pb-1.5">
+                <span class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1">
+                    <i class="fa-solid fa-grip-vertical text-slate-500 mr-0.5"></i>
+                    <i class="fa-solid fa-bullseye text-amber-400"></i> 착륙 예정지 예측
+                </span>
+                <button class="btn-minimize-panel text-slate-400 hover:text-white px-1 text-xs"><i class="fa-solid fa-chevron-up"></i></button>
+            </div>
+            <div class="panel-content space-y-1.5 sm:space-y-2 text-[11px] sm:text-xs">
+                <div class="flex justify-between items-center bg-slate-800/80 p-1.5 sm:p-2 rounded-lg border border-slate-700/50">
+                    <span class="text-slate-300">총 이동 거리:</span>
+                    <span id="pred-dist" class="font-bold text-amber-300 text-xs sm:text-sm">0.0 m</span>
+                </div>
+                <div class="flex justify-between items-center bg-slate-800/80 p-1.5 sm:p-2 rounded-lg border border-slate-700/50">
+                    <span class="text-slate-300">착륙 방위각:</span>
+                    <span id="pred-bearing" class="font-bold text-slate-100">0.0°</span>
+                </div>
+                <div class="flex justify-between items-center bg-slate-800/80 p-1.5 sm:p-2 rounded-lg border border-slate-700/50">
+                    <span class="text-slate-300">최고 고도 (Apogee):</span>
+                    <span id="pred-apogee" class="font-bold text-emerald-400">0.0 m</span>
+                </div>
+                <div class="flex justify-between items-center bg-slate-800/80 p-1.5 sm:p-2 rounded-lg border border-slate-700/50">
+                    <span class="text-slate-300">예상 비행시간:</span>
+                    <span id="pred-flight-time" class="font-bold text-cyan-400">0.0 s</span>
+                </div>
+                
+                <div class="bg-slate-800/90 p-1.5 sm:p-2 rounded-lg border border-amber-500/30 mt-1.5 sm:mt-2">
+                    <div class="text-[10px] sm:text-[11px] font-bold text-amber-400 mb-1 flex items-center justify-between">
+                        <span><i class="fa-solid fa-location-crosshairs mr-1"></i>착륙 좌표 (X, Z)</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1 font-mono text-[10px] sm:text-[11px]">
+                        <div class="bg-slate-900/60 p-1 sm:p-1.5 rounded border border-red-500/30 text-center">
+                            <span class="text-red-400 font-bold block">X축 (동서)</span>
+                            <span id="pred-x-coord" class="text-slate-100 font-bold">0.0 m</span>
+                        </div>
+                        <div class="bg-slate-900/60 p-1 sm:p-1.5 rounded border border-blue-500/30 text-center">
+                            <span class="text-blue-400 font-bold block">Z축 (남북)</span>
+                            <span id="pred-z-coord" class="text-slate-100 font-bold">0.0 m</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 제어 패널 -->
+        <div id="panel-controls" class="interactive draggable-panel absolute bottom-4 left-2 sm:left-4 bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-xl p-2.5 sm:p-3 shadow-2xl flex flex-col sm:flex-row items-stretch sm:items-center gap-2 max-w-[calc(100vw-16px)] sm:max-w-none">
+            <div class="drag-handle flex items-center justify-between sm:justify-start gap-2 border-b sm:border-b-0 sm:border-r border-slate-800 pb-1 sm:pb-0 sm:pr-2">
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-grip-vertical text-slate-500"></i>
+                    <span class="text-[10px] text-slate-400 sm:hidden">제어 패널</span>
+                </div>
+                <button class="btn-minimize-panel text-slate-400 hover:text-white px-1 text-xs sm:hidden"><i class="fa-solid fa-chevron-up"></i></button>
+            </div>
+            <div class="panel-content flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div class="flex items-center gap-2">
+                    <button id="btn-launch" class="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 sm:py-2 px-3 sm:px-4 rounded-lg shadow-lg hover:shadow-emerald-900/50 transition flex items-center justify-center gap-1.5 text-xs sm:text-sm">
+                        <i class="fa-solid fa-rocket"></i> 발사
+                    </button>
+                    <button id="btn-reset" class="flex-1 sm:flex-none bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-1.5 sm:py-2 px-3 rounded-lg shadow transition text-xs sm:text-sm flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-rotate-left"></i> 리셋
+                    </button>
+                </div>
+                
+                <div class="h-6 w-px bg-slate-700 mx-1 hidden sm:block"></div>
+                
+                <div class="flex items-center justify-between gap-1 bg-slate-800/80 p-1 rounded-lg border border-slate-700">
+                    <span class="text-[10px] sm:text-xs text-slate-400 px-1 font-medium">배속:</span>
+                    <div class="flex items-center gap-1">
+                        <button class="btn-speed text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 rounded bg-indigo-600 font-bold text-white" data-speed="1">1x</button>
+                        <button class="btn-speed text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 rounded hover:bg-slate-700 text-slate-300" data-speed="2">2x</button>
+                        <button class="btn-speed text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 rounded hover:bg-slate-700 text-slate-300" data-speed="5">5x</button>
+                        <button class="btn-speed text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 rounded hover:bg-slate-700 text-slate-300" data-speed="10">10x</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 환경 설정 패널 -->
+        <div id="panel-inputs" class="interactive draggable-panel absolute bottom-24 sm:bottom-4 right-2 sm:right-4 bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-xl p-3 sm:p-4 shadow-2xl w-[260px] sm:w-96 max-h-[40vh] sm:max-h-[50vh] overflow-y-auto">
+            <div class="drag-handle border-b border-slate-800 pb-2 mb-2 sm:mb-3 flex items-center justify-between cursor-move">
+                <span class="text-xs sm:text-sm font-bold text-slate-200"><i class="fa-solid fa-grip-vertical text-slate-500 mr-1 sm:mr-2"></i><i class="fa-solid fa-sliders text-indigo-400 mr-1 sm:mr-2"></i>비행 환경 설정</span>
+                <button class="btn-minimize-panel text-slate-400 hover:text-white px-1 text-xs"><i class="fa-solid fa-chevron-up"></i></button>
+            </div>
+
+            <div class="panel-content">
+                <div class="grid grid-cols-2 gap-2 sm:gap-3 text-[11px] sm:text-xs">
+                    <div>
+                        <label class="text-slate-400 block mb-0.5 sm:mb-1">최고 풍속 (m/s)</label>
+                        <div class="relative">
+                            <input type="number" id="input-wind-speed" value="3.0" step="0.5" min="0" max="25" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
+                            <span class="absolute right-1.5 top-1 text-slate-500 text-[10px]">m/s</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-slate-400 block mb-0.5 sm:mb-1">풍향 (0=북)</label>
+                        <div class="relative">
+                            <input type="number" id="input-wind-dir" value="45" step="5" min="0" max="360" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
+                            <span class="absolute right-1.5 top-1 text-slate-500 text-[10px]">°</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-slate-400 block mb-0.5 sm:mb-1">발사대 고각</label>
+                        <div class="relative">
+                            <input type="number" id="input-launch-pitch" value="85" step="1" min="60" max="90" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
+                            <span class="absolute right-1.5 top-1 text-slate-500 text-[10px]">°</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-slate-400 block mb-0.5 sm:mb-1">발사대 방위각</label>
+                        <div class="relative">
+                            <input type="number" id="input-launch-yaw" value="0" step="5" min="0" max="360" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
+                            <span class="absolute right-1.5 top-1 text-slate-500 text-[10px]">°</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-3 pt-2 border-t border-slate-800/80 text-[10px] sm:text-[11px] text-slate-400 space-y-0.5">
+                    <div class="flex justify-between"><span>로켓 길이:</span><span class="text-slate-200">900mm</span></div>
+                    <div class="flex justify-between"><span>풍속 프로파일:</span><span class="text-emerald-400 font-medium">S자 곡선 + 무작위 난기류</span></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const ROCKET_SPECS = {
+            mass: 2.364,       
+            fuelMass: 0.182,   
+            burnTime: 1.29,    
+            bodyLength: 0.9,   
+            coneLength: 0.2,   
+            cdAscent: 0.55,
+            parachuteSize: 1.5,
+            parachuteCd: 1.5,
+            thrustCurve: [
+                { time: 0.00, thrust: 0.0 },
+                { time: 0.05, thrust: 7.2 },
+                { time: 0.15, thrust: 78.4 },
+                { time: 0.25, thrust: 160.3 },
+                { time: 0.35, thrust: 212.1 },
+                { time: 0.50, thrust: 246.0 },
+                { time: 0.65, thrust: 249.6 },
+                { time: 0.80, thrust: 232.4 },
+                { time: 0.95, thrust: 212.8 },
+                { time: 1.05, thrust: 174.2 },
+                { time: 1.15, thrust: 99.2 },
+                { time: 1.25, thrust: 28.0 },
+                { time: 1.29, thrust: 0.0 }
+            ]
+        };
+
+        function getThrustAtTime(t) {
+            const curve = ROCKET_SPECS.thrustCurve;
+            if (t < 0 || t > ROCKET_SPECS.burnTime) return 0.0;
+            for (let i = 0; i < curve.length - 1; i++) {
+                if (t >= curve[i].time && t <= curve[i+1].time) {
+                    const ratio = (t - curve[i].time) / (curve[i+1].time - curve[i].time);
+                    return curve[i].thrust + ratio * (curve[i+1].thrust - curve[i].thrust);
+                }
+            }
+            return 0.0;
+        }
+
+        const PARACHUTE_AREA = 0.8284 * Math.pow(ROCKET_SPECS.parachuteSize, 2);
+        const VISUAL_SCALE = 6.0;
+
+        let scene, camera, renderer, controls;
+        let rocketGroup, parachuteGroup, trajectoryLine, predictedTrajectoryLine, landingMarker;
+        let axisGroup, windArrowHelper;
+        
+        // 발사할 때마다 바뀔 무작위 돌풍 씨앗값
+        let windGustSeedX = Math.random() * 100;
+        let windGustSeedZ = Math.random() * 100;
+
+        let simState = {
+            running: false,
+            time: 0,
+            pos: new THREE.Vector3(0, 0, 0),
+            vel: new THREE.Vector3(0, 0, 0),
+            apogee: 0,
+            parachuteDeployed: false,
+            trajectoryPoints: [],
+            predictedPoints: [],
+            predictedLanding: new THREE.Vector3(0,0,0)
+        };
+
+        let timeScale = 1.0;
+        let uiVisible = true;
+
+        const ui = {
+            windSpeed: document.getElementById('input-wind-speed'),
+            windDir: document.getElementById('input-wind-dir'),
+            launchPitch: document.getElementById('input-launch-pitch'),
+            launchYaw: document.getElementById('input-launch-yaw'),
+            teleAlt: document.getElementById('tele-alt'),
+            teleVel: document.getElementById('tele-vel'),
+            teleStatus: document.getElementById('tele-status'),
+            teleTime: document.getElementById('tele-time'),
+            predDist: document.getElementById('pred-dist'),
+            predBearing: document.getElementById('pred-bearing'),
+            predApogee: document.getElementById('pred-apogee'),
+            predFlightTime: document.getElementById('pred-flight-time'),
+            predXCoord: document.getElementById('pred-x-coord'),
+            predZCoord: document.getElementById('pred-z-coord'),
+            btnLaunch: document.getElementById('btn-launch'),
+            btnReset: document.getElementById('btn-reset'),
+            btnToggleUi: document.getElementById('btn-toggle-ui'),
+            iconToggleUi: document.getElementById('icon-toggle-ui')
+        };
+
+        // 무작위 돌풍이 적용된 바람 벡터 계산 함수
+        function getWindVector(pos, inputSpeed, windDirDeg, targetApogee = 100.0, time = 0) {
+            const totalHeight = (ROCKET_SPECS.bodyLength + ROCKET_SPECS.coneLength) * VISUAL_SCALE;
+            const groundLimit = totalHeight / 2;
+            const h = Math.max(0, pos.y - groundLimit);
+
+            let speedFactor = 0;
+            if (targetApogee > 0) {
+                const ratio = Math.min(1.0, Math.max(0.0, h / targetApogee));
+                speedFactor = Math.sin(ratio * (Math.PI / 2)); 
+            }
+
+            const currentSpeed = inputSpeed * speedFactor;
+            const windDirRad = (windDirDeg * Math.PI) / 180;
+
+            // 랜덤 요소를 결합한 미세 돌풍 계산
+            const randomNoiseX = (Math.sin(h * 0.08 + windGustSeedX + time * 2.0) + (Math.random() * 0.4 - 0.2));
+            const randomNoiseZ = (Math.cos(h * 0.07 + windGustSeedZ + time * 1.8) + (Math.random() * 0.4 - 0.2));
+
+            const gustX = randomNoiseX * (currentSpeed * 0.25);
+            const gustZ = randomNoiseZ * (currentSpeed * 0.25);
+
+            return new THREE.Vector3(
+                Math.sin(windDirRad) * currentSpeed + gustX,
+                0,
+                Math.cos(windDirRad) * currentSpeed + gustZ
+            );
+        }
+
+        function initScene() {
+            const container = document.getElementById('canvas-container');
+            
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a);
+            scene.fog = new THREE.FogExp2(0x0f172a, 0.001);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 3000);
+            camera.position.set(40, 25, 60);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            while (container.firstChild) {
+                container.removeChild(container.firstChild);
+            }
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.01;
+            controls.minDistance = 2;
+            controls.maxDistance = 1500;
+            controls.target.set(0, 10, 0);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            sunLight.position.set(100, 200, 100);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 1024;
+            sunLight.shadow.mapSize.height = 1024;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 1000;
+            const d = 200;
+            sunLight.shadow.camera.left = -d;
+            sunLight.shadow.camera.right = d;
+            sunLight.shadow.camera.top = d;
+            sunLight.shadow.camera.bottom = -d;
+            scene.add(sunLight);
+
+            createEnvironment();
+            createAxisGuide();
+            createWindIndicator();
+            createRocketModel();
+            createParachuteModel();
+            setupTrajectoryObjects();
+
+            window.addEventListener('resize', onWindowResize);
+
+            updatePrediction();
+            resetSimulation();
+        }
+
+        function createEnvironment() {
+            const groundGeo = new THREE.PlaneGeometry(2000, 2000);
+            const groundMat = new THREE.MeshStandardMaterial({ 
+                color: 0x1e293b, 
+                roughness: 0.9, 
+                metalness: 0.1 
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            const grid = new THREE.GridHelper(1000, 100, 0x38bdf8, 0x334155);
+            grid.position.y = 0.05;
+            scene.add(grid);
+
+            const padGeo = new THREE.CylinderGeometry(3, 3.2, 0.2, 32);
+            const padMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.5 });
+            const pad = new THREE.Mesh(padGeo, padMat);
+            pad.position.set(0, 0.1, 0);
+            pad.receiveShadow = true;
+            scene.add(pad);
+        }
+
+        function createAxisGuide() {
+            axisGroup = new THREE.Group();
+            axisGroup.position.set(-6, 0.1, -6);
+
+            const createArrow = (dir, color) => {
+                return new THREE.ArrowHelper(dir, new THREE.Vector3(0, 0, 0), 4, color, 0.8, 0.4);
+            };
+
+            axisGroup.add(createArrow(new THREE.Vector3(1, 0, 0), 0xef4444));
+            axisGroup.add(createArrow(new THREE.Vector3(0, 1, 0), 0x22c55e));
+            axisGroup.add(createArrow(new THREE.Vector3(0, 0, 1), 0x3b82f6));
+
+            scene.add(axisGroup);
+        }
+
+        function createWindIndicator() {
+            const dir = new THREE.Vector3(0, 0, 1);
+            const origin = new THREE.Vector3(6, 0.2, 6);
+            const length = 6;
+            const hex = 0x06b6d4;
+            windArrowHelper = new THREE.ArrowHelper(dir, origin, length, hex, 1.5, 0.8);
+            scene.add(windArrowHelper);
+        }
+
+        function updateWindIndicator() {
+            if (!windArrowHelper) return;
+            const speed = parseFloat(ui.windSpeed.value) || 0;
+            const dirDeg = parseFloat(ui.windDir.value) || 0;
+            const rad = (dirDeg * Math.PI) / 180;
+            
+            const windDirVec = new THREE.Vector3(Math.sin(rad), 0, Math.cos(rad)).normalize();
+            windArrowHelper.setDirection(windDirVec);
+            
+            const visualLength = Math.max(2, Math.min(speed * 1.5, 12));
+            windArrowHelper.setLength(visualLength, visualLength * 0.25, visualLength * 0.15);
+        }
+
+        function createParabolicConeGeometry(radius, height, segments = 32) {
+            const points = [];
+            for (let i = 0; i <= segments; i++) {
+                const t = i / segments;
+                const y = height * (1 - t);
+                const r = radius * Math.sqrt(1 - t);
+                points.push(new THREE.Vector2(r, height - y));
+            }
+            return new THREE.LatheGeometry(points, 32);
+        }
+
+        function createRightTriangleFinGeometry() {
+            const shape = new THREE.Shape();
+            const finHeight = -0.18;
+            const finWidth = -0.18;
+
+            shape.moveTo(-finWidth, 0);
+            shape.lineTo(finWidth, 0);
+            shape.lineTo(0, finHeight);
+            shape.closePath();
+
+            const extrudeSettings = {
+                depth: 0.005,
+                bevelEnabled: true,
+                bevelSegments: 2,
+                steps: 1,
+                bevelSize: 0.0008,
+                bevelThickness: 0.0008
+            };
+
+            const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            geo.center();
+            return geo;
+        }
+
+        function createRocketModel() {
+            rocketGroup = new THREE.Group();
+
+            const radius = 0.045 * VISUAL_SCALE;
+            const bodyH = ROCKET_SPECS.bodyLength * VISUAL_SCALE;
+            const coneH = ROCKET_SPECS.coneLength * VISUAL_SCALE;
+
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.3, metalness: 0.4 });
+            const coneMat = new THREE.MeshStandardMaterial({ color: 0xd97706, roughness: 0.2, metalness: 0.6 });
+            const finMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.5 });
+
+            const bodyGeo = new THREE.CylinderGeometry(radius, radius, bodyH, 32);
+            const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+            bodyMesh.castShadow = true;
+            rocketGroup.add(bodyMesh);
+
+            const coneGeo = createParabolicConeGeometry(radius, coneH);
+            const coneMesh = new THREE.Mesh(coneGeo, coneMat);
+            coneMesh.castShadow = true;
+            coneMesh.position.y = bodyH / 2;
+            rocketGroup.add(coneMesh);
+
+            const finGeo = createRightTriangleFinGeometry();
+            const finYPos = -bodyH / 2 + (0.12 * VISUAL_SCALE);
+
+            const finMeshX = new THREE.Mesh(finGeo, finMat);
+            finMeshX.scale.set(VISUAL_SCALE, VISUAL_SCALE, VISUAL_SCALE);
+            finMeshX.castShadow = true;
+            finMeshX.position.y = finYPos;
+            finMeshX.rotation.y = Math.PI / 2;
+            finMeshX.rotation.z = Math.PI / 1;
+            rocketGroup.add(finMeshX);
+
+            const finMeshZ = new THREE.Mesh(finGeo, finMat);
+            finMeshZ.scale.set(VISUAL_SCALE, VISUAL_SCALE, VISUAL_SCALE);
+            finMeshZ.castShadow = true;
+            finMeshZ.position.y = finYPos;
+            finMeshZ.rotation.z = Math.PI / 1;
+            rocketGroup.add(finMeshZ);
+
+            scene.add(rocketGroup);
+        }
+
+        function createParachuteModel() {
+            parachuteGroup = new THREE.Group();
+            const r = (ROCKET_SPECS.parachuteSize / 2) * VISUAL_SCALE;
+            
+            const shape = new THREE.Shape();
+            for (let i = 0; i < 8; i++) {
+                const a = (i * Math.PI) / 4;
+                const x = r * Math.cos(a);
+                const y = r * Math.sin(a);
+                if (i === 0) shape.moveTo(x, y);
+                else shape.lineTo(x, y);
+            }
+            shape.closePath();
+
+            const canopyGeo = new THREE.ShapeGeometry(shape);
+            const canopyMat = new THREE.MeshStandardMaterial({ color: 0xef4444, side: THREE.DoubleSide, roughness: 0.8 });
+            const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+            canopy.rotation.x = Math.PI / 2;
+            canopy.position.y = 1.2 * VISUAL_SCALE;
+            parachuteGroup.add(canopy);
+
+            const lineMat = new THREE.LineBasicMaterial({ color: 0xf8fafc, opacity: 0.6, transparent: true });
+            for (let i = 0; i < 8; i++) {
+                const a = (i * Math.PI) / 4;
+                const px = r * Math.cos(a);
+                const pz = r * Math.sin(a);
+
+                const lineGeo = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(px, 1.2 * VISUAL_SCALE, pz),
+                    new THREE.Vector3(0, 0, 0)
+                ]);
+                const line = new THREE.Line(lineGeo, lineMat);
+                parachuteGroup.add(line);
+            }
+
+            parachuteGroup.position.y = (ROCKET_SPECS.bodyLength / 2) * VISUAL_SCALE;
+            parachuteGroup.visible = false;
+            rocketGroup.add(parachuteGroup);
+        }
+
+        function setupTrajectoryObjects() {
+            trajectoryLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x38bdf8, linewidth: 3 }));
+            scene.add(trajectoryLine);
+
+            predictedTrajectoryLine = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineDashedMaterial({ color: 0xf59e0b, dashSize: 2, gapSize: 1, opacity: 0.7, transparent: true }));
+            scene.add(predictedTrajectoryLine);
+
+            landingMarker = new THREE.Mesh(new THREE.RingGeometry(1, 2.5, 32), new THREE.MeshBasicMaterial({ color: 0xf59e0b, side: THREE.DoubleSide, opacity: 0.8, transparent: true }));
+            landingMarker.rotation.x = -Math.PI / 2;
+            landingMarker.position.y = 0.1;
+            scene.add(landingMarker);
+        }
+
+        function calculateTrajectory(windSpeed, windDirDeg, pitchDeg, yawDeg) {
+            const dt = 0.05;
+            let time = 0;
+            
+            const pitch = (pitchDeg * Math.PI) / 180;
+            const yaw = (yawDeg * Math.PI) / 180;
+
+            const totalHeight = (ROCKET_SPECS.bodyLength + ROCKET_SPECS.coneLength) * VISUAL_SCALE;
+            const groundLimit = totalHeight / 2;
+
+            let pos = new THREE.Vector3(0, groundLimit, 0);
+            
+            const launchDir = new THREE.Vector3(
+                Math.cos(pitch) * Math.sin(yaw),
+                Math.sin(pitch),
+                Math.cos(pitch) * Math.cos(yaw)
+            ).normalize();
+
+            let vel = new THREE.Vector3(0, 0, 0);
+            let apogee = pos.y;
+            let parachuteDeployed = false;
+
+            const points = [pos.clone()];
+
+            let estApogee = 100.0;
+            let tempPos = pos.clone();
+            let tempVel = vel.clone();
+            let tempTime = 0;
+            while (tempTime < 30) {
+                let thrust = getThrustAtTime(tempTime);
+                let currentMass = ROCKET_SPECS.mass - (ROCKET_SPECS.fuelMass * Math.min(1.0, tempTime / ROCKET_SPECS.burnTime));
+                let force = new THREE.Vector3(0, -9.81 * currentMass, 0);
+                if (thrust > 0) force.add(launchDir.clone().multiplyScalar(thrust));
+                
+                let accel = force.divideScalar(currentMass);
+                tempVel.add(accel.multiplyScalar(dt));
+                tempPos.add(tempVel.clone().multiplyScalar(dt));
+                tempTime += dt;
+                
+                if (tempPos.y > estApogee) estApogee = tempPos.y;
+                if (tempTime > 1.5 && tempVel.y < 0) break;
+            }
+            const calculatedApogeeHeight = Math.max(10.0, estApogee - groundLimit);
+
+            while (time < 300) {
+                let currentThrust = getThrustAtTime(time);
+                if (currentThrust > 0) {
+                    const thrustNoise = 1.0 + (Math.sin(time * 12.3) * 0.05);
+                    currentThrust *= thrustNoise;
+                }
+
+                const burnRatio = Math.min(1.0, time / ROCKET_SPECS.burnTime);
+                const currentMass = ROCKET_SPECS.mass - (ROCKET_SPECS.fuelMass * burnRatio);
+
+                const windVec = getWindVector(pos, windSpeed, windDirDeg, calculatedApogeeHeight, time);
+
+                const relVel = vel.clone().sub(windVec);
+                const speedSq = relVel.lengthSq();
+
+                let totalForce = new THREE.Vector3(0, -9.81 * currentMass, 0);
+
+                if (currentThrust > 0) {
+                    totalForce.add(launchDir.clone().multiplyScalar(currentThrust));
+                }
+
+                if (time > 1.5 && (pos.y - groundLimit) > 10 && vel.y < 0 && !parachuteDeployed) {
+                    parachuteDeployed = true;
+                }
+
+                const cd = parachuteDeployed ? ROCKET_SPECS.parachuteCd : ROCKET_SPECS.cdAscent;
+                const area = parachuteDeployed ? PARACHUTE_AREA : (Math.PI * 0.045 * 0.045);
+                const dragMag = 0.5 * 1.225 * speedSq * cd * area;
+                
+                if (speedSq > 0) {
+                    totalForce.add(relVel.clone().normalize().multiplyScalar(-dragMag));
+                }
+
+                const accel = totalForce.divideScalar(currentMass);
+                vel.add(accel.multiplyScalar(dt));
+                pos.add(vel.clone().multiplyScalar(dt));
+
+                if (pos.y > apogee) apogee = pos.y;
+
+                points.push(pos.clone());
+                time += dt;
+
+                if (time > 0.5 && pos.y <= groundLimit) {
+                    pos.y = groundLimit;
+                    break;
+                }
+            }
+
+            const groundLandingPos = new THREE.Vector3(pos.x, 0, pos.z);
+            const totalDist = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
+            let bearing = (Math.atan2(pos.x, pos.z) * 180) / Math.PI;
+            if (bearing < 0) bearing += 360;
+
+            return {
+                points: points,
+                apogee: apogee - groundLimit,
+                landingPos: groundLandingPos,
+                distance: totalDist,
+                bearing: bearing,
+                flightTime: time
+            };
+        }
+
+        function updatePrediction() {
+            const windSpeed = parseFloat(ui.windSpeed.value) || 0;
+            const windDir = parseFloat(ui.windDir.value) || 0;
+            const launchPitch = parseFloat(ui.launchPitch.value) || 85;
+            const launchYaw = parseFloat(ui.launchYaw.value) || 0;
+
+            updateWindIndicator();
+
+            const pred = calculateTrajectory(windSpeed, windDir, launchPitch, launchYaw);
+            simState.predictedPoints = pred.points;
+            simState.predictedLanding = pred.landingPos;
+
+            const positions = new Float32Array(pred.points.length * 3);
+            for (let i = 0; i < pred.points.length; i++) {
+                positions[i * 3] = pred.points[i].x;
+                positions[i * 3 + 1] = pred.points[i].y;
+                positions[i * 3 + 2] = pred.points[i].z;
+            }
+            predictedTrajectoryLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            predictedTrajectoryLine.computeLineDistances();
+
+            landingMarker.position.set(pred.landingPos.x, 0.1, pred.landingPos.z);
+
+            ui.predDist.textContent = `${pred.distance.toFixed(1)} m`;
+            ui.predBearing.textContent = `${pred.bearing.toFixed(1)}°`;
+            ui.predApogee.textContent = `${pred.apogee.toFixed(1)} m`;
+            ui.predFlightTime.textContent = `${pred.flightTime.toFixed(1)} s`;
+            
+            const xVal = pred.landingPos.x;
+            const zVal = pred.landingPos.z;
+            const xDir = xVal >= 0 ? '동' : '서';
+            const zDir = zVal >= 0 ? '남' : '북';
+
+            if (ui.predXCoord) ui.predXCoord.textContent = `${xVal.toFixed(1)}m (${xDir})`;
+            if (ui.predZCoord) ui.predZCoord.textContent = `${zVal.toFixed(1)}m (${zDir})`;
+        }
+
+        function physicsStep(dt) {
+            if (!simState.running) return;
+
+            const windSpeedInput = parseFloat(ui.windSpeed.value) || 0;
+            const windDirDeg = parseFloat(ui.windDir.value) || 0;
+            const pitch = ((parseFloat(ui.launchPitch.value) || 85) * Math.PI) / 180;
+            const yaw = ((parseFloat(ui.launchYaw.value) || 0) * Math.PI) / 180;
+
+            const currentApogee = simState.apogee > 0 ? simState.apogee : 100.0;
+            
+            // 실시간 바람 계산에 경과시간(simState.time) 인자 추가
+            const windVec = getWindVector(simState.pos, windSpeedInput, windDirDeg, currentApogee, simState.time);
+
+            const launchDir = new THREE.Vector3(
+                Math.cos(pitch) * Math.sin(yaw),
+                Math.sin(pitch),
+                Math.cos(pitch) * Math.cos(yaw)
+            ).normalize();
+
+            let currentThrust = getThrustAtTime(simState.time);
+            if (currentThrust > 0) {
+                const thrustNoise = 1.0 + (Math.random() * 0.1 - 0.05);
+                currentThrust *= thrustNoise;
+            }
+
+            const burnRatio = Math.min(1.0, simState.time / ROCKET_SPECS.burnTime);
+            const currentMass = ROCKET_SPECS.mass - (ROCKET_SPECS.fuelMass * burnRatio);
+
+            let totalForce = new THREE.Vector3(0, -9.81 * currentMass, 0);
+            if (currentThrust > 0) {
+                totalForce.add(launchDir.clone().multiplyScalar(currentThrust));
+            }
+
+            const relVel = simState.vel.clone().sub(windVec);
+            const speedSq = relVel.lengthSq();
+
+            const totalHeight = (ROCKET_SPECS.bodyLength + ROCKET_SPECS.coneLength) * VISUAL_SCALE;
+            const groundLimit = totalHeight / 2;
+
+            if (simState.time > 1.5 && (simState.pos.y - groundLimit) > 10 && simState.vel.y < 0 && !simState.parachuteDeployed) {
+                simState.parachuteDeployed = true;
+                parachuteGroup.visible = true;
+                ui.teleStatus.textContent = '낙하산 전개 (하강)';
+                ui.teleStatus.className = 'text-xs sm:text-sm font-bold text-cyan-400';
+            }
+
+            const cd = simState.parachuteDeployed ? ROCKET_SPECS.parachuteCd : ROCKET_SPECS.cdAscent;
+            const area = simState.parachuteDeployed ? PARACHUTE_AREA : (Math.PI * 0.045 * 0.045);
+            const dragMag = 0.5 * 1.225 * speedSq * cd * area;
+            
+            if (speedSq > 0) {
+                totalForce.add(relVel.clone().normalize().multiplyScalar(-dragMag));
+            }
+
+            const accel = totalForce.divideScalar(currentMass);
+            simState.vel.add(accel.multiplyScalar(dt));
+            simState.pos.add(simState.vel.clone().multiplyScalar(dt));
+            simState.time += dt;
+
+            if ((simState.pos.y - groundLimit) > simState.apogee) {
+                simState.apogee = simState.pos.y - groundLimit;
+            }
+
+            if (simState.time > 0.5 && simState.pos.y <= groundLimit) {
+                simState.pos.y = groundLimit;
+                simState.running = false;
+                ui.teleStatus.textContent = '착륙 완료';
+                ui.teleStatus.className = 'text-xs sm:text-sm font-bold text-emerald-400';
+            }
+
+            rocketGroup.position.copy(simState.pos);
+
+            if (simState.vel.lengthSq() > 0.1 && !simState.parachuteDeployed) {
+                const targetDir = simState.pos.clone().add(simState.vel);
+                rocketGroup.lookAt(targetDir);
+                rocketGroup.rotateX(Math.PI / 2);
+            } else if (simState.parachuteDeployed) {
+                rocketGroup.rotation.set(0, 0, 0);
+            }
+
+            simState.trajectoryPoints.push(simState.pos.clone());
+            const positions = new Float32Array(simState.trajectoryPoints.length * 3);
+            for (let i = 0; i < simState.trajectoryPoints.length; i++) {
+                positions[i * 3] = simState.trajectoryPoints[i].x;
+                positions[i * 3 + 1] = simState.trajectoryPoints[i].y;
+                positions[i * 3 + 2] = simState.trajectoryPoints[i].z;
+            }
+            trajectoryLine.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            ui.teleAlt.textContent = `${(simState.pos.y - groundLimit).toFixed(1)} m`;
+            ui.teleVel.textContent = `${simState.vel.length().toFixed(1)} m/s`;
+            ui.teleTime.textContent = `${simState.time.toFixed(1)} s`;
+
+            controls.target.copy(simState.pos);
+        }
+
+        function startSimulation() {
+            if (simState.running) return;
+            resetSimulation();
+            
+            // 발사 버튼을 누를 때마다 무작위 돌풍 씨앗값 무작위 생성
+            windGustSeedX = Math.random() * 1000;
+            windGustSeedZ = Math.random() * 1000;
+
+            simState.running = true;
+            ui.teleStatus.textContent = '연소/상승 중';
+            ui.teleStatus.className = 'text-xs sm:text-sm font-bold text-amber-400';
+        }
+
+        function resetSimulation() {
+            simState.running = false;
+            simState.time = 0;
+
+            const totalHeight = (ROCKET_SPECS.bodyLength + ROCKET_SPECS.coneLength) * VISUAL_SCALE;
+            const groundLimit = totalHeight / 2;
+            
+            simState.pos.set(0, groundLimit, 0);
+            simState.vel.set(0, 0, 0);
+            simState.apogee = 0;
+            simState.parachuteDeployed = false;
+            simState.trajectoryPoints = [];
+
+            const pitch = ((parseFloat(ui.launchPitch.value) || 85) * Math.PI) / 180;
+            const yaw = ((parseFloat(ui.launchYaw.value) || 0) * Math.PI) / 180;
+            
+            rocketGroup.position.copy(simState.pos);
+            rocketGroup.rotation.set(0, 0, 0);
+            rocketGroup.rotation.y = yaw;
+            rocketGroup.rotateX(Math.PI / 2 - pitch);
+
+            parachuteGroup.visible = false;
+            trajectoryLine.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(0), 3));
+
+            ui.teleAlt.textContent = '0.0 m';
+            ui.teleVel.textContent = '0.0 m/s';
+            ui.teleStatus.textContent = '대기 중';
+            ui.teleStatus.className = 'text-xs sm:text-sm font-bold text-amber-400';
+            ui.teleTime.textContent = '0.0 s';
+
+            controls.target.set(0, 10, 0);
+            updatePrediction();
+        }
+
+        function setupEvents() {
+            ui.btnLaunch.addEventListener('click', startSimulation);
+            ui.btnReset.addEventListener('click', resetSimulation);
+
+            ui.btnToggleUi.addEventListener('click', () => {
+                uiVisible = !uiVisible;
+                const panels = document.querySelectorAll('.draggable-panel');
+                panels.forEach(p => {
+                    if (uiVisible) {
+                        p.classList.remove('panel-hidden');
+                    } else {
+                        p.classList.add('panel-hidden');
+                    }
+                });
+
+                if (uiVisible) {
+                    ui.iconToggleUi.className = 'fa-solid fa-eye-slash text-base';
+                    ui.btnToggleUi.classList.remove('bg-amber-600/90');
+                    ui.btnToggleUi.classList.add('bg-indigo-600/90');
+                } else {
+                    ui.iconToggleUi.className = 'fa-solid fa-eye text-base';
+                    ui.btnToggleUi.classList.remove('bg-indigo-600/90');
+                    ui.btnToggleUi.classList.add('bg-amber-600/90');
+                }
+            });
+
+            document.querySelectorAll('.btn-minimize-panel').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const panel = e.target.closest('.draggable-panel');
+                    const content = panel.querySelector('.panel-content');
+                    const icon = btn.querySelector('i');
+
+                    if (content.style.display === 'none') {
+                        content.style.display = 'block';
+                        icon.className = 'fa-solid fa-chevron-up';
+                    } else {
+                        content.style.display = 'none';
+                        icon.className = 'fa-solid fa-chevron-down';
+                    }
+                });
+            });
+
+            [ui.windSpeed, ui.windDir, ui.launchPitch, ui.launchYaw].forEach(input => {
+                input.addEventListener('input', () => {
+                    updatePrediction();
+                    if (!simState.running) resetSimulation();
+                });
+            });
+
+            document.querySelectorAll('.btn-speed').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.btn-speed').forEach(b => b.className = 'btn-speed text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 rounded hover:bg-slate-700 text-slate-300');
+                    e.target.className = 'btn-speed text-[10px] sm:text-xs px-2 py-0.5 sm:py-1 rounded bg-indigo-600 font-bold text-white';
+                    timeScale = parseFloat(e.target.dataset.speed);
+                });
+            });
+
+            enableDraggablePanels();
+        }
+
+        function enableDraggablePanels() {
+            const panels = document.querySelectorAll('.draggable-panel');
+
+            panels.forEach(panel => {
+                const handle = panel.querySelector('.drag-handle') || panel;
+                let isDragging = false;
+                let startX, startY, initialLeft, initialTop;
+
+                const onStart = (clientX, clientY, eTarget) => {
+                    if (['INPUT', 'BUTTON', 'A', 'I'].includes(eTarget.tagName)) return false;
+
+                    isDragging = true;
+                    panel.style.zIndex = '100';
+
+                    const rect = panel.getBoundingClientRect();
+                    startX = clientX;
+                    startY = clientY;
+                    initialLeft = rect.left;
+                    initialTop = rect.top;
+
+                    panel.style.position = 'fixed';
+                    panel.style.left = `${initialLeft}px`;
+                    panel.style.top = `${initialTop}px`;
+                    panel.style.right = 'auto';
+                    panel.style.bottom = 'auto';
+                    return true;
+                };
+
+                const onMove = (clientX, clientY) => {
+                    if (!isDragging) return;
+                    const dx = clientX - startX;
+                    const dy = clientY - startY;
+                    panel.style.left = `${initialLeft + dx}px`;
+                    panel.style.top = `${initialTop + dy}px`;
+                };
+
+                const onEnd = () => {
+                    if (!isDragging) return;
+                    isDragging = false;
+                    panel.style.zIndex = '10';
+                };
+
+                handle.addEventListener('mousedown', (e) => {
+                    if (onStart(e.clientX, e.clientY, e.target)) {
+                        const mouseMove = (me) => onMove(me.clientX, me.clientY);
+                        const mouseUp = () => {
+                            onEnd();
+                            window.removeEventListener('mousemove', mouseMove);
+                            window.removeEventListener('mouseup', mouseUp);
+                        };
+                        window.addEventListener('mousemove', mouseMove);
+                        window.addEventListener('mouseup', mouseUp);
+                    }
+                });
+
+                handle.addEventListener('touchstart', (e) => {
+                    if (e.touches.length === 1) {
+                        const touch = e.touches[0];
+                        if (onStart(touch.clientX, touch.clientY, e.target)) {
+                            const touchMove = (te) => {
+                                if (te.touches.length === 1) {
+                                    onMove(te.touches[0].clientX, te.touches[0].clientY);
+                                }
+                            };
+                            const touchEnd = () => {
+                                onEnd();
+                                window.removeEventListener('touchmove', touchMove);
+                                window.removeEventListener('touchend', touchEnd);
+                            };
+                            window.addEventListener('touchmove', touchMove, { passive: true });
+                            window.addEventListener('touchend', touchEnd);
+                        }
+                    }
+                }, { passive: true });
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const dt = 0.016 * timeScale;
+
+            if (simState.running) {
+                physicsStep(dt);
+            }
+
+            controls.update();
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initScene();
+            setupEvents();
+            animate();
+        });
+    </script>
+</body>
+</html>
