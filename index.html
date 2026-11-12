@@ -121,6 +121,7 @@
                 <div class="bg-slate-800/90 p-1.5 sm:p-2 rounded-lg border border-amber-500/30 mt-1.5 sm:mt-2">
                     <div class="text-[10px] sm:text-[11px] font-bold text-amber-400 mb-1 flex items-center justify-between">
                         <span><i class="fa-solid fa-location-crosshairs mr-1"></i>착륙 좌표 (X, Z)</span>
+                        <span id="pred-target-badge" class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">원점 10m 이내</span>
                     </div>
                     <div class="grid grid-cols-2 gap-1 font-mono text-[10px] sm:text-[11px]">
                         <div class="bg-slate-900/60 p-1 sm:p-1.5 rounded border border-red-500/30 text-center">
@@ -132,6 +133,29 @@
                             <span id="pred-z-coord" class="text-slate-100 font-bold">0.0 m</span>
                         </div>
                     </div>
+                </div>
+
+                <!-- 원점 복귀 최적 발사각 추천 박스 -->
+                <div class="bg-indigo-950/70 p-2 rounded-lg border border-indigo-500/40 mt-1.5 sm:mt-2">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[10px] sm:text-[11px] font-bold text-indigo-300 flex items-center gap-1">
+                            <i class="fa-solid fa-compass-drafting text-indigo-400"></i> 원점 복귀 추천 각도
+                        </span>
+                        <span id="opt-error-dist" class="text-[9px] text-emerald-400 font-mono">오차 0.0m</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1 text-[10px] sm:text-[11px] mb-1.5">
+                        <div class="bg-slate-900/70 px-1.5 py-1 rounded flex justify-between items-center">
+                            <span class="text-slate-400">고각:</span>
+                            <span id="opt-pitch" class="font-bold text-white font-mono">85.0°</span>
+                        </div>
+                        <div class="bg-slate-900/70 px-1.5 py-1 rounded flex justify-between items-center">
+                            <span class="text-slate-400">방위각:</span>
+                            <span id="opt-yaw" class="font-bold text-white font-mono">0.0°</span>
+                        </div>
+                    </div>
+                    <button id="btn-apply-optimal" class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-bold py-1 px-2 rounded text-[10px] sm:text-[11px] transition flex items-center justify-center gap-1 shadow">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> 추천 각도 자동 적용
+                    </button>
                 </div>
             </div>
         </div>
@@ -197,7 +221,7 @@
                     <div>
                         <label class="text-slate-400 block mb-0.5 sm:mb-1">발사대 고각</label>
                         <div class="relative">
-                            <input type="number" id="input-launch-pitch" value="85" step="1" min="60" max="90" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
+                            <input type="number" id="input-launch-pitch" value="85" step="0.5" min="45" max="90" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
                             <span class="absolute right-1.5 top-1 text-slate-500 text-[10px]">°</span>
                         </div>
                     </div>
@@ -205,7 +229,7 @@
                     <div>
                         <label class="text-slate-400 block mb-0.5 sm:mb-1">발사대 방위각</label>
                         <div class="relative">
-                            <input type="number" id="input-launch-yaw" value="0" step="5" min="0" max="360" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
+                            <input type="number" id="input-launch-yaw" value="0" step="1" min="0" max="360" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
                             <span class="absolute right-1.5 top-1 text-slate-500 text-[10px]">°</span>
                         </div>
                     </div>
@@ -299,6 +323,11 @@
             predFlightTime: document.getElementById('pred-flight-time'),
             predXCoord: document.getElementById('pred-x-coord'),
             predZCoord: document.getElementById('pred-z-coord'),
+            predTargetBadge: document.getElementById('pred-target-badge'),
+            optPitch: document.getElementById('opt-pitch'),
+            optYaw: document.getElementById('opt-yaw'),
+            optErrorDist: document.getElementById('opt-error-dist'),
+            btnApplyOptimal: document.getElementById('btn-apply-optimal'),
             btnLaunch: document.getElementById('btn-launch'),
             btnReset: document.getElementById('btn-reset'),
             btnToggleUi: document.getElementById('btn-toggle-ui'),
@@ -306,7 +335,7 @@
         };
 
         // 고도(0m -> 최고 고도)에 따라 풍속이 최고 풍속까지 비례하여 커지는 계산 함수
-        function getWindVector(pos, inputSpeed, windDirDeg, targetApogee = 100.0, time = 0) {
+        function getWindVector(pos, inputSpeed, windDirDeg, targetApogee = 100.0, time = 0, deterministic = false) {
             const totalHeight = (ROCKET_SPECS.bodyLength + ROCKET_SPECS.coneLength) * VISUAL_SCALE;
             const groundLimit = totalHeight / 2;
             const h = Math.max(0, pos.y - groundLimit);
@@ -324,8 +353,10 @@
             const windVectorX = Math.sin(windDirRad) * currentSpeed;
             const windVectorZ = -Math.cos(windDirRad) * currentSpeed;
 
-            const randomNoiseX = (Math.sin(h * 0.08 + windGustSeedX + time * 2.0) + (Math.random() * 0.4 - 0.2));
-            const randomNoiseZ = (Math.cos(h * 0.07 + windGustSeedZ + time * 1.8) + (Math.random() * 0.4 - 0.2));
+            const randX = deterministic ? 0 : (Math.random() * 0.4 - 0.2);
+            const randZ = deterministic ? 0 : (Math.random() * 0.4 - 0.2);
+            const randomNoiseX = (Math.sin(h * 0.08 + windGustSeedX + time * 2.0) + randX);
+            const randomNoiseZ = (Math.cos(h * 0.07 + windGustSeedZ + time * 1.8) + randZ);
 
             const gustX = randomNoiseX * (currentSpeed * 0.15);
             const gustZ = randomNoiseZ * (currentSpeed * 0.15);
@@ -418,6 +449,32 @@
             pad.position.set(0, 0.1, 0);
             pad.receiveShadow = true;
             scene.add(pad);
+
+            // 발사대 원점 반경 10m 허용 오차범위 원형 구역 표시
+            const targetFillGeo = new THREE.CircleGeometry(10, 64);
+            const targetFillMat = new THREE.MeshBasicMaterial({
+                color: 0x10b981,
+                transparent: true,
+                opacity: 0.12,
+                side: THREE.DoubleSide,
+                depthWrite: false
+            });
+            const targetFill = new THREE.Mesh(targetFillGeo, targetFillMat);
+            targetFill.rotation.x = -Math.PI / 2;
+            targetFill.position.y = 0.08;
+            scene.add(targetFill);
+
+            const targetRingGeo = new THREE.RingGeometry(9.75, 10.0, 64);
+            const targetRingMat = new THREE.MeshBasicMaterial({
+                color: 0x10b981,
+                transparent: true,
+                opacity: 0.75,
+                side: THREE.DoubleSide
+            });
+            const targetRing = new THREE.Mesh(targetRingGeo, targetRingMat);
+            targetRing.rotation.x = -Math.PI / 2;
+            targetRing.position.y = 0.09;
+            scene.add(targetRing);
         }
 
         function createAxisGuide() {
@@ -588,7 +645,7 @@
             scene.add(landingMarker);
         }
 
-        function calculateTrajectory(windSpeed, windDirDeg, pitchDeg, yawDeg) {
+        function calculateTrajectory(windSpeed, windDirDeg, pitchDeg, yawDeg, deterministic = false) {
             const dt = 0.05;
             let time = 0;
             
@@ -642,7 +699,7 @@
                 const burnRatio = Math.min(1.0, time / ROCKET_SPECS.burnTime);
                 const currentMass = ROCKET_SPECS.mass - (ROCKET_SPECS.fuelMass * burnRatio);
 
-                const windVec = getWindVector(pos, windSpeed, windDirDeg, calculatedApogeeHeight, time);
+                const windVec = getWindVector(pos, windSpeed, windDirDeg, calculatedApogeeHeight, time, deterministic);
 
                 const relVel = vel.clone().sub(windVec);
                 const speedSq = relVel.lengthSq();
@@ -695,6 +752,53 @@
             };
         }
 
+        let currentOptimalAngles = { pitch: 90.0, yaw: 0.0, distance: 0.0 };
+
+        // 현재 풍속/풍향 조건에서 발사대 원점(반경 10m 이내)으로 착륙하기 위한 최적 고각/방위각 역산
+        function findOptimalLaunchAngles(windSpeed, windDirDeg) {
+            if (windSpeed <= 0.05) {
+                const res = calculateTrajectory(windSpeed, windDirDeg, 90.0, 0.0, true);
+                return { pitch: 90.0, yaw: 0.0, distance: res.distance };
+            }
+
+            // 바람이 불어가는 방향: (sin(windDir), -cos(windDir))
+            // 바람을 거슬러 쏘려면 반대 방향: (-sin(windDir), cos(windDir))
+            // launchDir의 수평 성분은 (sin(yaw), cos(yaw))이므로
+            // sin(yaw) = -sin(windDir), cos(yaw) = cos(windDir) => yaw = (360 - windDir) % 360
+            let baseYaw = (360 - (windDirDeg % 360)) % 360;
+            if (baseYaw < 0) baseYaw += 360;
+
+            let bestPitch = 90.0;
+            let bestYaw = baseYaw;
+            let bestDist = Infinity;
+
+            // 1단계: 고각 45° ~ 90° 범위에서 1° 단위로 거친 탐색 (바람 반대 방위각 기준)
+            for (let p = 90.0; p >= 45.0; p -= 1.0) {
+                const res = calculateTrajectory(windSpeed, windDirDeg, p, baseYaw, true);
+                if (res.distance < bestDist) {
+                    bestDist = res.distance;
+                    bestPitch = p;
+                }
+            }
+
+            // 2단계: 최적 고각 주변 ±1.5° (0.1° 단위) 및 방위각 ±15° (1° 단위) 정밀 탐색 (돌풍 편향 보정)
+            const pMin = Math.max(45.0, bestPitch - 1.5);
+            const pMax = Math.min(90.0, bestPitch + 1.5);
+            for (let p = pMin; p <= pMax + 0.001; p += 0.1) {
+                for (let dy = -15; dy <= 15; dy += 1) {
+                    let y = (baseYaw + dy + 360) % 360;
+                    const res = calculateTrajectory(windSpeed, windDirDeg, p, y, true);
+                    if (res.distance < bestDist) {
+                        bestDist = res.distance;
+                        bestPitch = Math.round(p * 10) / 10;
+                        bestYaw = Math.round(y * 10) / 10;
+                    }
+                }
+            }
+
+            return { pitch: bestPitch, yaw: bestYaw, distance: bestDist };
+        }
+
         function updatePrediction() {
             const windSpeed = parseFloat(ui.windSpeed.value) || 0;
             const windDir = parseFloat(ui.windDir.value) || 0;
@@ -718,6 +822,22 @@
 
             landingMarker.position.set(pred.landingPos.x, 0.1, pred.landingPos.z);
 
+            // 반경 10m 오차범위 판정 및 마커 색상 동기화
+            const isWithin10m = pred.distance <= 10.0;
+            if (isWithin10m) {
+                landingMarker.material.color.setHex(0x10b981);
+                if (ui.predTargetBadge) {
+                    ui.predTargetBadge.textContent = '원점 10m 이내';
+                    ui.predTargetBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+                }
+            } else {
+                landingMarker.material.color.setHex(0xf59e0b);
+                if (ui.predTargetBadge) {
+                    ui.predTargetBadge.textContent = '10m 범위 이탈';
+                    ui.predTargetBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40';
+                }
+            }
+
             ui.predDist.textContent = `${pred.distance.toFixed(1)} m`;
             ui.predBearing.textContent = `${pred.bearing.toFixed(1)}°`;
             ui.predApogee.textContent = `${pred.apogee.toFixed(1)} m`;
@@ -730,6 +850,20 @@
 
             if (ui.predXCoord) ui.predXCoord.textContent = `${xVal.toFixed(1)}m (${xDir})`;
             if (ui.predZCoord) ui.predZCoord.textContent = `${zVal.toFixed(1)}m (${zDir})`;
+
+            // 최적 발사각 계산 및 UI 업데이트
+            currentOptimalAngles = findOptimalLaunchAngles(windSpeed, windDir);
+            if (ui.optPitch) ui.optPitch.textContent = `${currentOptimalAngles.pitch.toFixed(1)}°`;
+            if (ui.optYaw) ui.optYaw.textContent = `${currentOptimalAngles.yaw.toFixed(1)}°`;
+            if (ui.optErrorDist) {
+                if (currentOptimalAngles.distance <= 10.0) {
+                    ui.optErrorDist.textContent = `예상 오차 ${currentOptimalAngles.distance.toFixed(1)}m (목표 내)`;
+                    ui.optErrorDist.className = 'text-[9px] text-emerald-400 font-mono';
+                } else {
+                    ui.optErrorDist.textContent = `최소 오차 ${currentOptimalAngles.distance.toFixed(1)}m (강풍)`;
+                    ui.optErrorDist.className = 'text-[9px] text-amber-400 font-mono';
+                }
+            }
         }
 
         function physicsStep(dt) {
@@ -917,6 +1051,15 @@
                     }
                 });
             });
+
+            if (ui.btnApplyOptimal) {
+                ui.btnApplyOptimal.addEventListener('click', () => {
+                    ui.launchPitch.value = currentOptimalAngles.pitch.toFixed(1);
+                    ui.launchYaw.value = currentOptimalAngles.yaw.toFixed(1);
+                    updatePrediction();
+                    if (!simState.running) resetSimulation();
+                });
+            }
 
             [ui.windSpeed, ui.windDir, ui.launchPitch, ui.launchYaw].forEach(input => {
                 input.addEventListener('input', () => {
