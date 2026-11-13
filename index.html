@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D 로켓 비행 및 착륙 예측 시뮬레이터 (모바일 최적화)</title>
+    <title>3D 로켓 비행 및 GPS 착륙 예측 시뮬레이터 (X, Z축 좌표 포함)</title>
     <!-- Tailwind CSS & FontAwesome -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -30,7 +30,6 @@
         input[type=number] { -moz-appearance: textfield; }
         .draggable-panel { touch-action: none; user-select: none; transition: transform 0.3s ease, opacity 0.3s ease; }
         .drag-handle { cursor: move; }
-        
         .panel-hidden {
             opacity: 0 !important;
             pointer-events: none !important;
@@ -56,21 +55,11 @@
                     <h1 class="font-bold text-xs sm:text-sm text-slate-100">로켓 비행 시뮬레이터</h1>
                 </div>
                 <div class="flex items-center gap-1">
-                    <span class="text-[9px] text-slate-500 hidden sm:inline">드래그 이동</span>
                     <button class="btn-minimize-panel text-slate-400 hover:text-white px-1 text-xs"><i class="fa-solid fa-chevron-up"></i></button>
                 </div>
             </div>
             <div class="panel-content">
-                <div class="flex items-center gap-2 mb-2">
-                    <div class="bg-indigo-600 p-1.5 rounded-lg">
-                        <i class="fa-solid fa-rocket text-sm sm:text-base text-white"></i>
-                    </div>
-                    <div>
-                        <p class="text-[10px] sm:text-xs text-slate-400">고도 비례 풍속 및 비행 자세 동적 반영</p>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-1.5 sm:gap-2 mt-2 pt-2 border-t border-slate-800 text-[11px] sm:text-xs">
+                <div class="grid grid-cols-2 gap-1.5 sm:gap-2 text-[11px] sm:text-xs">
                     <div class="bg-slate-800/60 p-1.5 sm:p-2 rounded-lg">
                         <span class="text-slate-400 block text-[10px]">현재 고도</span>
                         <span id="tele-alt" class="text-xs sm:text-sm font-bold text-emerald-400">0.0 m</span>
@@ -91,12 +80,68 @@
             </div>
         </div>
 
-        <!-- 착륙 예정지 예측 패널 -->
-        <div id="panel-prediction" class="interactive draggable-panel absolute top-24 sm:top-4 right-2 sm:right-16 bg-slate-900/95 backdrop-blur-md border border-amber-500/40 rounded-xl p-3 sm:p-4 shadow-2xl w-60 sm:w-64">
+        <!-- GPS 좌표 및 날씨 연동 패널 -->
+        <div id="panel-gps" class="interactive draggable-panel absolute top-44 left-2 sm:left-4 bg-slate-900/95 backdrop-blur-md border border-emerald-500/40 rounded-xl p-3 sm:p-4 shadow-2xl max-w-[280px] sm:max-w-sm w-full">
+            <div class="drag-handle flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-grip-vertical text-slate-500"></i>
+                    <span class="font-bold text-xs sm:text-sm text-emerald-400 flex items-center gap-1">
+                        <i class="fa-solid fa-satellite-dish"></i> GPS 좌표 및 날씨 연동
+                    </span>
+                </div>
+                <button class="btn-minimize-panel text-slate-400 hover:text-white px-1 text-xs"><i class="fa-solid fa-chevron-up"></i></button>
+            </div>
+            <div class="panel-content space-y-2.5">
+                <!-- GPS 위치 및 실시간 날씨 연동 버튼 -->
+                <button id="btn-gps-sync" class="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold py-2 px-3 rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-lg">
+                    <i class="fa-solid fa-location-crosshairs"></i> 📍 내 GPS 위치 및 실시간 날씨 연동
+                </button>
+
+                <!-- 발사대 GPS 좌표 표시 및 직접 입력 박스 -->
+                <div class="bg-slate-800/90 p-2 rounded-lg border border-indigo-500/40">
+                    <div class="text-[10px] sm:text-[11px] font-bold text-indigo-400 mb-1.5 flex items-center justify-between">
+                        <span><i class="fa-solid fa-location-dot mr-1"></i>발사대 GPS (직접 입력 가능)</span>
+                    </div>
+                    <div class="space-y-1.5 font-mono text-[10px] text-slate-200">
+                        <div class="flex items-center justify-between bg-slate-900/60 px-2 py-1 rounded border border-slate-700/60 focus-within:border-indigo-400">
+                            <span class="text-slate-400 shrink-0">위도 (Lat):</span>
+                            <input type="number" id="input-launch-lat" step="any" placeholder="예: 36.500000" class="w-32 bg-transparent text-right font-bold text-indigo-300 focus:outline-none placeholder-slate-600">
+                        </div>
+                        <div class="flex items-center justify-between bg-slate-900/60 px-2 py-1 rounded border border-slate-700/60 focus-within:border-indigo-400">
+                            <span class="text-slate-400 shrink-0">경도 (Lon):</span>
+                            <input type="number" id="input-launch-lon" step="any" placeholder="예: 127.500000" class="w-32 bg-transparent text-right font-bold text-indigo-300 focus:outline-none placeholder-slate-600">
+                        </div>
+                    </div>
+                    <button id="btn-fetch-coord-weather" class="mt-1.5 w-full bg-indigo-600/80 hover:bg-indigo-500 active:scale-[0.98] text-white font-semibold py-1 px-2 rounded text-[10px] transition flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-cloud-sun-rain"></i> 입력 좌표 기준 날씨 가져오기
+                    </button>
+                </div>
+
+                <!-- 착륙지 GPS 좌표 표시 박스 -->
+                <div class="bg-slate-800/90 p-2 rounded-lg border border-emerald-500/40">
+                    <div class="text-[10px] sm:text-[11px] font-bold text-emerald-400 mb-1 flex items-center justify-between">
+                        <span><i class="fa-solid fa-earth-asia mr-1"></i>착륙지 GPS 좌표</span>
+                    </div>
+                    <div class="space-y-1 font-mono text-[10px] text-slate-200">
+                        <div class="flex justify-between bg-slate-900/60 p-1 rounded">
+                            <span class="text-slate-400">위도 (Lat):</span>
+                            <span id="pred-lat" class="font-bold text-emerald-300">-</span>
+                        </div>
+                        <div class="flex justify-between bg-slate-900/60 p-1 rounded">
+                            <span class="text-slate-400">경도 (Lon):</span>
+                            <span id="pred-lon" class="font-bold text-emerald-300">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 착륙 예정지 예측 및 원점 회귀 최적 각도 패널 -->
+        <div id="panel-prediction" class="interactive draggable-panel absolute top-40 sm:top-4 right-2 sm:right-16 bg-slate-900/95 backdrop-blur-md border border-amber-500/40 rounded-xl p-3 sm:p-4 shadow-2xl w-64 sm:w-72 max-h-[85vh] overflow-y-auto">
             <div class="drag-handle flex items-center justify-between mb-2 border-b border-slate-800 pb-1.5">
                 <span class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1">
                     <i class="fa-solid fa-grip-vertical text-slate-500 mr-0.5"></i>
-                    <i class="fa-solid fa-bullseye text-amber-400"></i> 착륙 예정지 예측
+                    <i class="fa-solid fa-bullseye text-amber-400"></i> 착륙 예정지 예측 및 원점 회귀
                 </span>
                 <button class="btn-minimize-panel text-slate-400 hover:text-white px-1 text-xs"><i class="fa-solid fa-chevron-up"></i></button>
             </div>
@@ -117,11 +162,11 @@
                     <span class="text-slate-300">예상 비행시간:</span>
                     <span id="pred-flight-time" class="font-bold text-cyan-400">0.0 s</span>
                 </div>
-                
-                <div class="bg-slate-800/90 p-1.5 sm:p-2 rounded-lg border border-amber-500/30 mt-1.5 sm:mt-2">
+
+                <!-- 착륙 좌표 (X, Z축 미터) -->
+                <div class="bg-slate-800/90 p-1.5 sm:p-2 rounded-lg border border-amber-500/30">
                     <div class="text-[10px] sm:text-[11px] font-bold text-amber-400 mb-1 flex items-center justify-between">
-                        <span><i class="fa-solid fa-location-crosshairs mr-1"></i>착륙 좌표 (X, Z)</span>
-                        <span id="pred-target-badge" class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">원점 10m 이내</span>
+                        <span><i class="fa-solid fa-arrows-up-down-left-right mr-1"></i>착륙 좌표 (X, Z)</span>
                     </div>
                     <div class="grid grid-cols-2 gap-1 font-mono text-[10px] sm:text-[11px]">
                         <div class="bg-slate-900/60 p-1 sm:p-1.5 rounded border border-red-500/30 text-center">
@@ -135,28 +180,30 @@
                     </div>
                 </div>
 
-                <!-- 원점 복귀 최적 발사각 추천 박스 -->
-                <div class="bg-indigo-950/70 p-2 rounded-lg border border-indigo-500/40 mt-1.5 sm:mt-2">
-                    <div class="flex items-center justify-between mb-1">
-                        <span class="text-[10px] sm:text-[11px] font-bold text-indigo-300 flex items-center gap-1">
-                            <i class="fa-solid fa-compass-drafting text-indigo-400"></i> 원점 복귀 추천 각도
-                        </span>
-                        <span id="opt-error-dist" class="text-[9px] text-emerald-400 font-mono">오차 0.0m</span>
+                <!-- 원점 회귀 최적 발사각 안내 박스 -->
+                <div class="bg-indigo-950/60 p-2 rounded-lg border border-indigo-500/40">
+                    <div class="text-[10px] sm:text-[11px] font-bold text-indigo-300 mb-1 flex items-center justify-between">
+                        <span><i class="fa-solid fa-crosshairs mr-1"></i>원점 회귀 최적 발사대 각도</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-1 text-[10px] sm:text-[11px] mb-1.5">
-                        <div class="bg-slate-900/70 px-1.5 py-1 rounded flex justify-between items-center">
-                            <span class="text-slate-400">고각:</span>
-                            <span id="opt-pitch" class="font-bold text-white font-mono">85.0°</span>
+                    <div class="grid grid-cols-2 gap-1 font-mono text-[10px] sm:text-[11px] mb-1.5">
+                        <div class="bg-slate-900/70 p-1 rounded text-center">
+                            <span class="text-slate-400 block text-[9px]">최적 고각 (Pitch)</span>
+                            <span id="opt-pitch" class="font-bold text-indigo-300">-</span>
                         </div>
-                        <div class="bg-slate-900/70 px-1.5 py-1 rounded flex justify-between items-center">
-                            <span class="text-slate-400">방위각:</span>
-                            <span id="opt-yaw" class="font-bold text-white font-mono">0.0°</span>
+                        <div class="bg-slate-900/70 p-1 rounded text-center">
+                            <span class="text-slate-400 block text-[9px]">최적 방위각 (Yaw)</span>
+                            <span id="opt-yaw" class="font-bold text-indigo-300">-</span>
                         </div>
                     </div>
-                    <button id="btn-apply-optimal" class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-bold py-1 px-2 rounded text-[10px] sm:text-[11px] transition flex items-center justify-center gap-1 shadow">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> 추천 각도 자동 적용
+                    <button id="btn-apply-optimal" class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-bold py-1.5 px-2 rounded text-[11px] transition flex items-center justify-center gap-1 shadow">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> 최적 각도 즉시 적용하기
                     </button>
                 </div>
+
+                <!-- 네이버 지도 동시 보기 버튼 -->
+                <button id="btn-naver-map" class="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white font-bold py-2 px-3 rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-lg">
+                    <i class="fa-solid fa-map-location-dot"></i> 네이버 지도에서 발사대·착륙지 동시 보기
+                </button>
             </div>
         </div>
 
@@ -194,18 +241,18 @@
         </div>
 
         <!-- 환경 설정 패널 -->
-        <div id="panel-inputs" class="interactive draggable-panel absolute bottom-24 sm:bottom-4 right-2 sm:right-4 bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-xl p-3 sm:p-4 shadow-2xl w-[260px] sm:w-96 max-h-[40vh] sm:max-h-[50vh] overflow-y-auto">
+        <div id="panel-inputs" class="interactive draggable-panel absolute bottom-24 sm:bottom-4 right-2 sm:right-4 bg-slate-900/90 backdrop-blur-md border border-slate-700/60 rounded-xl p-3 sm:p-4 shadow-2xl w-[260px] sm:w-96 max-h-[45vh] overflow-y-auto">
             <div class="drag-handle border-b border-slate-800 pb-2 mb-2 sm:mb-3 flex items-center justify-between cursor-move">
                 <span class="text-xs sm:text-sm font-bold text-slate-200"><i class="fa-solid fa-grip-vertical text-slate-500 mr-1 sm:mr-2"></i><i class="fa-solid fa-sliders text-indigo-400 mr-1 sm:mr-2"></i>비행 환경 설정</span>
                 <button class="btn-minimize-panel text-slate-400 hover:text-white px-1 text-xs"><i class="fa-solid fa-chevron-up"></i></button>
             </div>
 
-            <div class="panel-content">
+            <div class="panel-content space-y-2">
                 <div class="grid grid-cols-2 gap-2 sm:gap-3 text-[11px] sm:text-xs">
                     <div>
                         <label class="text-slate-400 block mb-0.5 sm:mb-1">최고 풍속 (m/s)</label>
                         <div class="relative">
-                            <input type="number" id="input-wind-speed" value="3.0" step="0.5" min="0" max="25" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
+                            <input type="number" id="input-wind-speed" value="3.00" step="0.01" min="0" max="25" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
                             <span class="absolute right-1.5 top-1 text-slate-500 text-[10px]">m/s</span>
                         </div>
                     </div>
@@ -221,7 +268,7 @@
                     <div>
                         <label class="text-slate-400 block mb-0.5 sm:mb-1">발사대 고각</label>
                         <div class="relative">
-                            <input type="number" id="input-launch-pitch" value="85" step="0.5" min="45" max="90" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
+                            <input type="number" id="input-launch-pitch" value="85" step="1" min="60" max="90" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
                             <span class="absolute right-1.5 top-1 text-slate-500 text-[10px]">°</span>
                         </div>
                     </div>
@@ -229,14 +276,13 @@
                     <div>
                         <label class="text-slate-400 block mb-0.5 sm:mb-1">발사대 방위각</label>
                         <div class="relative">
-                            <input type="number" id="input-launch-yaw" value="0" step="1" min="0" max="360" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
+                            <input type="number" id="input-launch-yaw" value="0" step="5" min="0" max="360" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-slate-100 font-medium focus:outline-none focus:border-indigo-500">
                             <span class="absolute right-1.5 top-1 text-slate-500 text-[10px]">°</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="mt-3 pt-2 border-t border-slate-800/80 text-[10px] sm:text-[11px] text-slate-400 space-y-0.5">
-                    <div class="flex justify-between"><span>로켓 길이:</span><span class="text-slate-200">900mm</span></div>
                     <div class="flex justify-between"><span>풍속 프로파일:</span><span class="text-emerald-400 font-medium">고도 비례 최고 풍속 적용</span></div>
                 </div>
             </div>
@@ -245,6 +291,9 @@
     </div>
 
     <script>
+        const WEATHER_API_KEY = "25eda4a754ebee2c4b3a2f860d369127";
+        let launchLatLon = null;
+
         const ROCKET_SPECS = {
             mass: 2.364,       
             fuelMass: 0.182,   
@@ -307,6 +356,8 @@
 
         let timeScale = 1.0;
         let uiVisible = true;
+        let lastPrediction = null;
+        let optimalLaunchSettings = { pitch: 85, yaw: 0 };
 
         const ui = {
             windSpeed: document.getElementById('input-wind-speed'),
@@ -323,24 +374,100 @@
             predFlightTime: document.getElementById('pred-flight-time'),
             predXCoord: document.getElementById('pred-x-coord'),
             predZCoord: document.getElementById('pred-z-coord'),
-            predTargetBadge: document.getElementById('pred-target-badge'),
             optPitch: document.getElementById('opt-pitch'),
             optYaw: document.getElementById('opt-yaw'),
-            optErrorDist: document.getElementById('opt-error-dist'),
             btnApplyOptimal: document.getElementById('btn-apply-optimal'),
+            inputLaunchLat: document.getElementById('input-launch-lat'),
+            inputLaunchLon: document.getElementById('input-launch-lon'),
+            btnFetchCoordWeather: document.getElementById('btn-fetch-coord-weather'),
+            predLat: document.getElementById('pred-lat'),
+            predLon: document.getElementById('pred-lon'),
             btnLaunch: document.getElementById('btn-launch'),
             btnReset: document.getElementById('btn-reset'),
+            btnGpsSync: document.getElementById('btn-gps-sync'),
+            btnNaverMap: document.getElementById('btn-naver-map'),
             btnToggleUi: document.getElementById('btn-toggle-ui'),
             iconToggleUi: document.getElementById('icon-toggle-ui')
         };
 
-        // 고도(0m -> 최고 고도)에 따라 풍속이 최고 풍속까지 비례하여 커지는 계산 함수
-        function getWindVector(pos, inputSpeed, windDirDeg, targetApogee = 100.0, time = 0, deterministic = false) {
+        async function fetchWeatherForCoords(lat, lon, showAlert = true) {
+            try {
+                const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.wind) {
+                        ui.windSpeed.value = Number(data.wind.speed).toFixed(2);
+                        ui.windDir.value = data.wind.deg || 0;
+                        updatePrediction();
+                        if (showAlert) {
+                            alert(`실시간 날씨 연동 완료!\n풍속: ${Number(data.wind.speed).toFixed(2)} m/s, 풍향: ${data.wind.deg || 0}°`);
+                        }
+                    }
+                } else if (showAlert) {
+                    alert("날씨 정보를 불러오는데 실패했습니다.");
+                }
+            } catch (e) {
+                console.error("날씨 API 호출 오류:", e);
+                if (showAlert) alert("날씨 API 호출 중 오류가 발생했습니다.");
+            }
+        }
+
+        function handleManualCoordInput() {
+            const lat = parseFloat(ui.inputLaunchLat.value);
+            const lon = parseFloat(ui.inputLaunchLon.value);
+
+            if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+                launchLatLon = { lat, lon };
+            } else {
+                launchLatLon = null;
+            }
+            updatePrediction();
+        }
+
+        function getCurrentLocationAndWeather() {
+            if (!navigator.geolocation) {
+                alert("브라우저가 위치 정보를 지원하지 않습니다.");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    launchLatLon = { lat, lon };
+
+                    ui.inputLaunchLat.value = lat.toFixed(6);
+                    ui.inputLaunchLon.value = lon.toFixed(6);
+
+                    updatePrediction();
+                    await fetchWeatherForCoords(lat, lon, true);
+                },
+                (error) => {
+                    alert("GPS 위치를 가져오지 못했습니다. 권한을 확인하거나 좌표를 직접 입력해주세요.");
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
+
+        function calculateLandingLatLng(launchLat, launchLon, distanceMeters, bearingDeg) {
+            const R = 6371000; 
+            const latRad = launchLat * Math.PI / 180;
+            const bearingRad = bearingDeg * Math.PI / 180;
+
+            const dLat = (distanceMeters * Math.cos(bearingRad)) / R;
+            const dLon = (distanceMeters * Math.sin(bearingRad)) / (R * Math.cos(latRad));
+
+            return {
+                lat: launchLat + (dLat * 180 / Math.PI),
+                lon: launchLon + (dLon * 180 / Math.PI)
+            };
+        }
+
+        function getWindVector(pos, inputSpeed, windDirDeg, targetApogee = 100.0, time = 0) {
             const totalHeight = (ROCKET_SPECS.bodyLength + ROCKET_SPECS.coneLength) * VISUAL_SCALE;
             const groundLimit = totalHeight / 2;
             const h = Math.max(0, pos.y - groundLimit);
 
-            // 고도가 0m일 때는 20%의 영향만 받고, 고도가 높아짐에 따라 입력된 최고 풍속(100%)까지 비례 상승
             let speedFactor = 0.2;
             if (targetApogee > 0) {
                 const ratio = Math.min(1.0, Math.max(0.0, h / targetApogee));
@@ -353,10 +480,8 @@
             const windVectorX = Math.sin(windDirRad) * currentSpeed;
             const windVectorZ = -Math.cos(windDirRad) * currentSpeed;
 
-            const randX = deterministic ? 0 : (Math.random() * 0.4 - 0.2);
-            const randZ = deterministic ? 0 : (Math.random() * 0.4 - 0.2);
-            const randomNoiseX = (Math.sin(h * 0.08 + windGustSeedX + time * 2.0) + randX);
-            const randomNoiseZ = (Math.cos(h * 0.07 + windGustSeedZ + time * 1.8) + randZ);
+            const randomNoiseX = (Math.sin(h * 0.08 + windGustSeedX + time * 2.0) + (Math.random() * 0.4 - 0.2));
+            const randomNoiseZ = (Math.cos(h * 0.07 + windGustSeedZ + time * 1.8) + (Math.random() * 0.4 - 0.2));
 
             const gustX = randomNoiseX * (currentSpeed * 0.15);
             const gustZ = randomNoiseZ * (currentSpeed * 0.15);
@@ -449,32 +574,6 @@
             pad.position.set(0, 0.1, 0);
             pad.receiveShadow = true;
             scene.add(pad);
-
-            // 발사대 원점 반경 10m 허용 오차범위 원형 구역 표시
-            const targetFillGeo = new THREE.CircleGeometry(10, 64);
-            const targetFillMat = new THREE.MeshBasicMaterial({
-                color: 0x10b981,
-                transparent: true,
-                opacity: 0.12,
-                side: THREE.DoubleSide,
-                depthWrite: false
-            });
-            const targetFill = new THREE.Mesh(targetFillGeo, targetFillMat);
-            targetFill.rotation.x = -Math.PI / 2;
-            targetFill.position.y = 0.08;
-            scene.add(targetFill);
-
-            const targetRingGeo = new THREE.RingGeometry(9.75, 10.0, 64);
-            const targetRingMat = new THREE.MeshBasicMaterial({
-                color: 0x10b981,
-                transparent: true,
-                opacity: 0.75,
-                side: THREE.DoubleSide
-            });
-            const targetRing = new THREE.Mesh(targetRingGeo, targetRingMat);
-            targetRing.rotation.x = -Math.PI / 2;
-            targetRing.position.y = 0.09;
-            scene.add(targetRing);
         }
 
         function createAxisGuide() {
@@ -645,7 +744,7 @@
             scene.add(landingMarker);
         }
 
-        function calculateTrajectory(windSpeed, windDirDeg, pitchDeg, yawDeg, deterministic = false) {
+        function calculateTrajectory(windSpeed, windDirDeg, pitchDeg, yawDeg) {
             const dt = 0.05;
             let time = 0;
             
@@ -699,7 +798,7 @@
                 const burnRatio = Math.min(1.0, time / ROCKET_SPECS.burnTime);
                 const currentMass = ROCKET_SPECS.mass - (ROCKET_SPECS.fuelMass * burnRatio);
 
-                const windVec = getWindVector(pos, windSpeed, windDirDeg, calculatedApogeeHeight, time, deterministic);
+                const windVec = getWindVector(pos, windSpeed, windDirDeg, calculatedApogeeHeight, time);
 
                 const relVel = vel.clone().sub(windVec);
                 const speedSq = relVel.lengthSq();
@@ -752,55 +851,30 @@
             };
         }
 
-        let currentOptimalAngles = { pitch: 90.0, yaw: 0.0, distance: 0.0 };
+        function calculateOptimalLaunchForOrigin(windSpeed, windDir) {
+            let bestPitch = 85;
+            let bestYaw = 0;
+            let minDistance = Infinity;
 
-        // 현재 풍속/풍향 조건에서 발사대 원점(반경 10m 이내)으로 착륙하기 위한 최적 고각/방위각 역산
-        function findOptimalLaunchAngles(windSpeed, windDirDeg) {
-            if (windSpeed <= 0.05) {
-                const res = calculateTrajectory(windSpeed, windDirDeg, 90.0, 0.0, true);
-                return { pitch: 90.0, yaw: 0.0, distance: res.distance };
-            }
+            const targetYawBase = (windDir + 180) % 360;
 
-            // 바람이 불어가는 방향: (sin(windDir), -cos(windDir))
-            // 바람을 거슬러 쏘려면 반대 방향: (-sin(windDir), cos(windDir))
-            // launchDir의 수평 성분은 (sin(yaw), cos(yaw))이므로
-            // sin(yaw) = -sin(windDir), cos(yaw) = cos(windDir) => yaw = (360 - windDir) % 360
-            let baseYaw = (360 - (windDirDeg % 360)) % 360;
-            if (baseYaw < 0) baseYaw += 360;
-
-            let bestPitch = 90.0;
-            let bestYaw = baseYaw;
-            let bestDist = Infinity;
-
-            // 1단계: 고각 45° ~ 90° 범위에서 1° 단위로 거친 탐색 (바람 반대 방위각 기준)
-            for (let p = 90.0; p >= 45.0; p -= 1.0) {
-                const res = calculateTrajectory(windSpeed, windDirDeg, p, baseYaw, true);
-                if (res.distance < bestDist) {
-                    bestDist = res.distance;
-                    bestPitch = p;
-                }
-            }
-
-            // 2단계: 최적 고각 주변 ±1.5° (0.1° 단위) 및 방위각 ±15° (1° 단위) 정밀 탐색 (돌풍 편향 보정)
-            const pMin = Math.max(45.0, bestPitch - 1.5);
-            const pMax = Math.min(90.0, bestPitch + 1.5);
-            for (let p = pMin; p <= pMax + 0.001; p += 0.1) {
-                for (let dy = -15; dy <= 15; dy += 1) {
-                    let y = (baseYaw + dy + 360) % 360;
-                    const res = calculateTrajectory(windSpeed, windDirDeg, p, y, true);
-                    if (res.distance < bestDist) {
-                        bestDist = res.distance;
-                        bestPitch = Math.round(p * 10) / 10;
-                        bestYaw = Math.round(y * 10) / 10;
+            for (let dyaw = -30; dyaw <= 30; dyaw += 5) {
+                let testYaw = (targetYawBase + dyaw + 360) % 360;
+                for (let testPitch = 70; testPitch <= 89; testPitch += 1) {
+                    const pred = calculateTrajectory(windSpeed, windDir, testPitch, testYaw);
+                    if (pred.distance < minDistance) {
+                        minDistance = pred.distance;
+                        bestPitch = testPitch;
+                        bestYaw = testYaw;
                     }
                 }
             }
 
-            return { pitch: bestPitch, yaw: bestYaw, distance: bestDist };
+            return { pitch: bestPitch, yaw: bestYaw };
         }
 
         function updatePrediction() {
-            const windSpeed = parseFloat(ui.windSpeed.value) || 0;
+            const windSpeed = Number(parseFloat(ui.windSpeed.value || 0).toFixed(2));
             const windDir = parseFloat(ui.windDir.value) || 0;
             const launchPitch = parseFloat(ui.launchPitch.value) || 85;
             const launchYaw = parseFloat(ui.launchYaw.value) || 0;
@@ -808,6 +882,7 @@
             updateWindIndicator();
 
             const pred = calculateTrajectory(windSpeed, windDir, launchPitch, launchYaw);
+            lastPrediction = pred;
             simState.predictedPoints = pred.points;
             simState.predictedLanding = pred.landingPos;
 
@@ -822,27 +897,11 @@
 
             landingMarker.position.set(pred.landingPos.x, 0.1, pred.landingPos.z);
 
-            // 반경 10m 오차범위 판정 및 마커 색상 동기화
-            const isWithin10m = pred.distance <= 10.0;
-            if (isWithin10m) {
-                landingMarker.material.color.setHex(0x10b981);
-                if (ui.predTargetBadge) {
-                    ui.predTargetBadge.textContent = '원점 10m 이내';
-                    ui.predTargetBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
-                }
-            } else {
-                landingMarker.material.color.setHex(0xf59e0b);
-                if (ui.predTargetBadge) {
-                    ui.predTargetBadge.textContent = '10m 범위 이탈';
-                    ui.predTargetBadge.className = 'px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40';
-                }
-            }
-
             ui.predDist.textContent = `${pred.distance.toFixed(1)} m`;
             ui.predBearing.textContent = `${pred.bearing.toFixed(1)}°`;
             ui.predApogee.textContent = `${pred.apogee.toFixed(1)} m`;
             ui.predFlightTime.textContent = `${pred.flightTime.toFixed(1)} s`;
-            
+
             const xVal = pred.landingPos.x;
             const zVal = pred.landingPos.z;
             const xDir = xVal >= 0 ? '동' : '서';
@@ -850,33 +909,30 @@
 
             if (ui.predXCoord) ui.predXCoord.textContent = `${xVal.toFixed(1)}m (${xDir})`;
             if (ui.predZCoord) ui.predZCoord.textContent = `${zVal.toFixed(1)}m (${zDir})`;
+            
+            const optimal = calculateOptimalLaunchForOrigin(windSpeed, windDir);
+            optimalLaunchSettings = optimal;
+            if (ui.optPitch) ui.optPitch.textContent = `${optimal.pitch}°`;
+            if (ui.optYaw) ui.optYaw.textContent = `${optimal.yaw}°`;
 
-            // 최적 발사각 계산 및 UI 업데이트
-            currentOptimalAngles = findOptimalLaunchAngles(windSpeed, windDir);
-            if (ui.optPitch) ui.optPitch.textContent = `${currentOptimalAngles.pitch.toFixed(1)}°`;
-            if (ui.optYaw) ui.optYaw.textContent = `${currentOptimalAngles.yaw.toFixed(1)}°`;
-            if (ui.optErrorDist) {
-                if (currentOptimalAngles.distance <= 10.0) {
-                    ui.optErrorDist.textContent = `예상 오차 ${currentOptimalAngles.distance.toFixed(1)}m (목표 내)`;
-                    ui.optErrorDist.className = 'text-[9px] text-emerald-400 font-mono';
-                } else {
-                    ui.optErrorDist.textContent = `최소 오차 ${currentOptimalAngles.distance.toFixed(1)}m (강풍)`;
-                    ui.optErrorDist.className = 'text-[9px] text-amber-400 font-mono';
-                }
-            }
+            const baseLat = launchLatLon ? launchLatLon.lat : 36.5;
+            const baseLon = launchLatLon ? launchLatLon.lon : 127.5;
+            const landingLatLng = calculateLandingLatLng(baseLat, baseLon, pred.distance, pred.bearing);
+
+            ui.predLat.textContent = landingLatLng.lat.toFixed(6);
+            ui.predLon.textContent = landingLatLng.lon.toFixed(6);
         }
 
         function physicsStep(dt) {
             if (!simState.running) return;
 
-            const windSpeedInput = parseFloat(ui.windSpeed.value) || 0;
+            const windSpeedInput = Number(parseFloat(ui.windSpeed.value || 0).toFixed(2));
             const windDirDeg = parseFloat(ui.windDir.value) || 0;
             const pitch = ((parseFloat(ui.launchPitch.value) || 85) * Math.PI) / 180;
             const yaw = ((parseFloat(ui.launchYaw.value) || 0) * Math.PI) / 180;
 
             const currentApogee = simState.apogee > 0 ? simState.apogee : 100.0;
             
-            // 고도 비례 바람 벡터 실시간 반영
             const windVec = getWindVector(simState.pos, windSpeedInput, windDirDeg, currentApogee, simState.time);
 
             const launchDir = new THREE.Vector3(
@@ -899,7 +955,6 @@
                 totalForce.add(launchDir.clone().multiplyScalar(currentThrust));
             }
 
-            // 공기 상대 속도 및 밀려남 계산
             const relVel = simState.vel.clone().sub(windVec);
             const speedSq = relVel.lengthSq();
 
@@ -939,7 +994,6 @@
 
             rocketGroup.position.copy(simState.pos);
 
-            // 속도와 바람 영향이 반영된 진행 방향으로 로켓 실시간 기울어짐 처리
             if (simState.vel.lengthSq() > 0.1 && !simState.parachuteDeployed) {
                 const targetDir = simState.pos.clone().add(simState.vel);
                 rocketGroup.lookAt(targetDir);
@@ -1013,6 +1067,40 @@
         function setupEvents() {
             ui.btnLaunch.addEventListener('click', startSimulation);
             ui.btnReset.addEventListener('click', resetSimulation);
+            ui.btnGpsSync.addEventListener('click', getCurrentLocationAndWeather);
+
+            ui.inputLaunchLat.addEventListener('input', handleManualCoordInput);
+            ui.inputLaunchLon.addEventListener('input', handleManualCoordInput);
+
+            ui.btnFetchCoordWeather.addEventListener('click', () => {
+                const lat = parseFloat(ui.inputLaunchLat.value);
+                const lon = parseFloat(ui.inputLaunchLon.value);
+                if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+                    alert("올바른 위도(-90 ~ 90)와 경도(-180 ~ 180)를 먼저 입력해주세요.");
+                    return;
+                }
+                launchLatLon = { lat, lon };
+                updatePrediction();
+                fetchWeatherForCoords(lat, lon, true);
+            });
+
+            ui.btnApplyOptimal.addEventListener('click', () => {
+                ui.launchPitch.value = optimalLaunchSettings.pitch;
+                ui.launchYaw.value = optimalLaunchSettings.yaw;
+                updatePrediction();
+                if (!simState.running) resetSimulation();
+                alert(`원점 회귀 최적 각도가 적용되었습니다.\n고각: ${optimalLaunchSettings.pitch}°, 방위각: ${optimalLaunchSettings.yaw}°`);
+            });
+
+            ui.btnNaverMap.addEventListener('click', () => {
+                if (!lastPrediction) return;
+                const baseLat = launchLatLon ? launchLatLon.lat : 36.5;
+                const baseLon = launchLatLon ? launchLatLon.lon : 127.5;
+                const landing = calculateLandingLatLng(baseLat, baseLon, lastPrediction.distance, lastPrediction.bearing);
+                
+                const url = `https://map.naver.com/v5/directions/${baseLon},${baseLat},발사대/${landing.lon},${landing.lat},착륙지/-/car`;
+                window.open(url, '_blank');
+            });
 
             ui.btnToggleUi.addEventListener('click', () => {
                 uiVisible = !uiVisible;
@@ -1051,15 +1139,6 @@
                     }
                 });
             });
-
-            if (ui.btnApplyOptimal) {
-                ui.btnApplyOptimal.addEventListener('click', () => {
-                    ui.launchPitch.value = currentOptimalAngles.pitch.toFixed(1);
-                    ui.launchYaw.value = currentOptimalAngles.yaw.toFixed(1);
-                    updatePrediction();
-                    if (!simState.running) resetSimulation();
-                });
-            }
 
             [ui.windSpeed, ui.windDir, ui.launchPitch, ui.launchYaw].forEach(input => {
                 input.addEventListener('input', () => {
@@ -1115,17 +1194,12 @@
                     panel.style.top = `${initialTop + dy}px`;
                 };
 
-                const onEnd = () => {
-                    if (!isDragging) return;
-                    isDragging = false;
-                    panel.style.zIndex = '10';
-                };
-
                 handle.addEventListener('mousedown', (e) => {
                     if (onStart(e.clientX, e.clientY, e.target)) {
                         const mouseMove = (me) => onMove(me.clientX, me.clientY);
                         const mouseUp = () => {
-                            onEnd();
+                            isDragging = false;
+                            panel.style.zIndex = '10';
                             window.removeEventListener('mousemove', mouseMove);
                             window.removeEventListener('mouseup', mouseUp);
                         };
@@ -1144,7 +1218,8 @@
                                 }
                             };
                             const touchEnd = () => {
-                                onEnd();
+                                isDragging = false;
+                                panel.style.zIndex = '10';
                                 window.removeEventListener('touchmove', touchMove);
                                 window.removeEventListener('touchend', touchEnd);
                             };
